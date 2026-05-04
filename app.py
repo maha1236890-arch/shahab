@@ -152,8 +152,6 @@ def login():
             session["username"]  = user["username"]
             session["role"]      = user["role"]
             session["full_name"] = user["full_name"]
-            if user["role"] == "admin" and db.is_first_run():
-                return redirect(url_for("change_password"))
             return redirect(url_for("dashboard"))
         else:
             flash("اسم المستخدم أو كلمة المرور غير صحيحة", "danger")

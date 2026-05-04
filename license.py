@@ -7,7 +7,47 @@ import hmac
 import hashlib
 import base64
 import os
+import sys
 from datetime import date
+
+
+# ── مسار ملف الترخيص الدائم (خارج مجلد التطبيق) ─────────────────────────
+
+def _license_file_path() -> str:
+    """
+    مسار ملف الترخيص الدائم:
+    - Windows: %APPDATA%\\Shahab\\shahab.lic
+    - Linux/macOS: ~/.config/shahab/shahab.lic
+    يبقى محفوظاً عند تحديث التطبيق أو إعادة تثبيته.
+    """
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", os.path.expanduser("~"))
+        folder = os.path.join(base, "Shahab")
+    else:
+        folder = os.path.join(os.path.expanduser("~"), ".config", "shahab")
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, "shahab.lic")
+
+
+def _read_license_file() -> str:
+    """يقرأ مفتاح الترخيص من الملف الدائم"""
+    try:
+        path = _license_file_path()
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return ""
+
+
+def _write_license_file(key: str):
+    """يكتب مفتاح الترخيص إلى الملف الدائم"""
+    try:
+        with open(_license_file_path(), "w", encoding="utf-8") as f:
+            f.write(key.strip())
+    except Exception:
+        pass
 
 # ── المفتاح السري (مخفي داخل الكود — لا يُغيَّر بعد البيع) ──────────────
 _SECRET = b"@tt3nd@nc3_$y$_k3y_2025_#mgg#"
@@ -87,26 +127,43 @@ def verify_license(key: str) -> dict:
         return {"valid": False, "reason": "مفتاح غير صالح", "expired": False}
 
 
-# ── حالة الترخيص من قاعدة البيانات ─────────────────────────────────────
+# ── حالة الترخيص (يبحث أولاً في الملف الدائم ثم في قاعدة البيانات) ───────
 
 def get_license_status() -> dict:
     """يجلب المفتاح المخزّن ويتحقق منه"""
-    try:
-        import database as db
-        key = db.get_setting("license_key", "")
-        if not key:
-            return {"valid": False, "reason": "لا يوجد ترخيص", "expired": False}
-        return verify_license(key)
-    except Exception as e:
-        return {"valid": False, "reason": str(e), "expired": False}
+    # 1) ابحث في الملف الدائم أولاً
+    key = _read_license_file()
+
+    # 2) إن لم يوجد في الملف، ابحث في قاعدة البيانات (للتوافق مع النسخ القديمة)
+    if not key:
+        try:
+            import database as db
+            key = db.get_setting("license_key", "")
+            # إن وُجد في DB ولم يكن في الملف، انقله إلى الملف الدائم
+            if key:
+                _write_license_file(key)
+        except Exception:
+            pass
+
+    if not key:
+        return {"valid": False, "reason": "لا يوجد ترخيص", "expired": False}
+
+    return verify_license(key)
 
 
 def save_license(key: str) -> dict:
     """يتحقق من المفتاح ثم يحفظه إن كان صالحاً"""
     result = verify_license(key)
     if result["valid"]:
-        import database as db
-        db.set_setting("license_key", key.replace(" ", ""))
+        clean_key = key.replace(" ", "")
+        # احفظ في الملف الدائم
+        _write_license_file(clean_key)
+        # احفظ أيضاً في قاعدة البيانات (للتوافق)
+        try:
+            import database as db
+            db.set_setting("license_key", clean_key)
+        except Exception:
+            pass
     return result
 
 
