@@ -14,11 +14,16 @@ import threading
 # ── مسار التطبيق (يعمل مع PyInstaller أيضاً) ────────────────────────────
 if getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS          # عند التجميع PyInstaller يضع الملفات هنا
-    DATA_DIR = os.path.dirname(sys.executable)
+    # DATA_DIR = مجلد قابل للكتابة (لا نكتب داخل Program Files)
+    if sys.platform == "win32":
+        DATA_DIR = os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "Shahab")
+    else:
+        DATA_DIR = os.path.join(os.path.expanduser("~"), ".config", "shahab")
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = BASE_DIR
 
+os.makedirs(DATA_DIR, exist_ok=True)
 os.chdir(BASE_DIR)
 sys.path.insert(0, BASE_DIR)
 
@@ -533,6 +538,11 @@ class LicenseDialog(QWidget):
 def main():
     qapp = QApplication(sys.argv)
     qapp.setApplicationName("shahab")
+
+    # ── تعيين مسار قاعدة البيانات في مجلد قابل للكتابة ─────────────────
+    # (Program Files ممنوع الكتابة على ويندوز)
+    if "DB_PATH" not in os.environ:
+        os.environ["DB_PATH"] = os.path.join(DATA_DIR, "attendance.db")
     qapp.setApplicationDisplayName(APP_NAME)
     qapp.setOrganizationName("MGG Software")
     if sys.platform == "linux":
