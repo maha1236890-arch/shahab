@@ -49,28 +49,12 @@
       </div>
     </div>
 
-    {# ── إدخال مفتاح جديد ── #}
+    {# ── رسالة الترخيص الدائم ── #}
     <div class="card border-0 shadow-sm">
-      <div class="card-header bg-primary text-white">
-        <i class="fa-solid fa-key me-2"></i>
-        {% if status.valid %}تحديث مفتاح الترخيص{% else %}تفعيل الترخيص{% endif %}
-      </div>
-      <div class="card-body">
-        <form method="POST">
-          <div class="mb-3">
-            <label class="form-label fw-bold">مفتاح الترخيص</label>
-            <input type="text" name="license_key" class="form-control form-control-lg font-monospace"
-                   placeholder="XXXXXX-XXXXXX-XXXXXX-..."
-                   autocomplete="off" autocorrect="off" spellcheck="false"
-                   dir="ltr" required>
-            <div class="form-text text-muted">
-              يمكنك الحصول على مفتاح الترخيص من المورّد بعد الشراء.
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fa-solid fa-shield-check me-1"></i>تفعيل المفتاح
-          </button>
-        </form>
+      <div class="card-body text-center py-4">
+        <i class="fa-solid fa-infinity fa-3x text-success mb-3"></i>
+        <h5 class="fw-bold text-success">هذه النسخة مرخّصة مدى الحياة</h5>
+        <p class="text-muted mb-0">لا يلزم إدخال أي مفتاح. استمتع باستخدام النظام بلا قيود.</p>
       </div>
     </div>
 
