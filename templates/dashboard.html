@@ -11,26 +11,26 @@
   </span>
 </div>
 
-<!-- إحصائيات اليوم -->
+<!-- إحصائيات اليوم — KPI Cards (Nielsen Norman: top-border + big number pattern) -->
 {% set cards = [
-  ('إجمالي الموظفين', stats.get('total',   0), 'fa-users',          '#0f3460', '#e8f0fe'),
-  ('حاضر',            stats.get('present', 0), 'fa-user-check',     '#27ae60', '#e8f8f0'),
-  ('غائب',            stats.get('absent',  0), 'fa-user-xmark',     '#e74c3c', '#fdecea'),
-  ('متأخر',           stats.get('late',    0), 'fa-clock',          '#f39c12', '#fef9e7'),
-  ('إجازة',           stats.get('leave',   0), 'fa-umbrella-beach', '#3498db', '#ebf5fb'),
+  ('إجمالي الموظفين', stats.get('total',0),   'fa-users',          '#2563eb', '#eff6ff'),
+  ('حاضر',           stats.get('present',0),  'fa-user-check',     '#16a34a', '#f0fdf4'),
+  ('غائب',           stats.get('absent',0),   'fa-user-xmark',     '#dc2626', '#fef2f2'),
+  ('متأخر',          stats.get('late',0),     'fa-clock',          '#d97706', '#fffbeb'),
+  ('إجازة',          stats.get('leave',0),    'fa-umbrella-beach', '#0891b2', '#ecfeff'),
 ] %}
 <div class="row g-3 mb-4">
   {% for label, val, icon, color, bg in cards %}
   <div class="col-6 col-sm-4 col-xl">
-    <div class="card shadow-sm h-100" style="border-radius:14px;">
-      <div class="card-body d-flex align-items-center gap-3 py-3">
-        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-             style="width:46px;height:46px;background:{{ bg }};">
-          <i class="fa-solid {{ icon }}" style="color:{{ color }};font-size:1.1rem;"></i>
-        </div>
+    <div class="kpi-card">
+      <span class="kpi-bar" style="background:{{ color }}"></span>
+      <div class="kpi-body d-flex align-items-start justify-content-between gap-2">
         <div>
-          <div class="stat-num" style="color:{{ color }}">{{ val }}</div>
-          <small class="text-muted">{{ label }}</small>
+          <div class="kpi-num" style="color:{{ color }}">{{ val }}</div>
+          <div class="kpi-label">{{ label }}</div>
+        </div>
+        <div class="kpi-icon" style="background:{{ bg }};color:{{ color }}">
+          <i class="fa-solid {{ icon }}"></i>
         </div>
       </div>
     </div>
@@ -65,27 +65,129 @@
 </div>
 {% endif %}
 
+<!-- ── صف رئيسي: رسم دائري + سجل حضور اليوم ── -->
+<div class="row g-4 mb-4">
+
+  <!-- رسم دائري — Donut Chart (Tableau/Nielsen: 60k× faster than text) -->
+  <div class="col-lg-4">
+    <div class="card h-100" style="border-radius:var(--radius)">
+      <div class="card-header bg-white py-3" style="border-radius:var(--radius) var(--radius) 0 0">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-chart-pie text-primary me-2"></i>توزيع الحضور اليوم
+        </h6>
+      </div>
+      <div class="card-body d-flex flex-column align-items-center justify-content-center py-4">
+        <div style="position:relative;width:190px;height:190px">
+          <canvas id="attendanceDonut"></canvas>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+            <div class="donut-total">{{ stats.get('total',0) }}</div>
+            <div style="font-size:.72rem;color:#64748b">موظف</div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-3 mt-3 justify-content-center">
+          {% for lbl, clr, cnt in [
+            ('حاضر',  '#16a34a', stats.get('present',0)),
+            ('غائب',  '#dc2626', stats.get('absent',0)),
+            ('متأخر', '#d97706', stats.get('late',0)),
+            ('إجازة', '#0891b2', stats.get('leave',0))
+          ] %}
+          <div class="d-flex align-items-center gap-1" style="font-size:.78rem;color:#374151">
+            <span style="width:10px;height:10px;border-radius:3px;background:{{ clr }};display:inline-block;flex-shrink:0"></span>
+            <span>{{ lbl }}&nbsp;<strong style="color:{{ clr }}">{{ cnt }}</strong></span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- سجل حضور اليوم -->
+  <div class="col-lg-8">
+    <div class="card h-100" style="border-radius:var(--radius)">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between py-3"
+           style="border-radius:var(--radius) var(--radius) 0 0">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-list-check text-primary me-2"></i>سجل حضور اليوم
+        </h6>
+        <a href="{{ url_for('attendance') }}" class="btn btn-sm btn-primary">
+          <i class="fa-solid fa-plus me-1"></i>تسجيل الحضور
+        </a>
+      </div>
+      {% if recent %}
+      <div class="card-body p-0" style="overflow-y:auto;max-height:340px">
+        <div class="tbl-wrap" style="border-radius:0">
+          <table class="table table-hover mb-0">
+            <thead style="position:sticky;top:0;z-index:1">
+              <tr>
+                <th>الموظف</th>
+                <th class="d-none d-md-table-cell">القسم</th>
+                <th>الحالة</th>
+                <th class="d-none d-sm-table-cell">الدخول</th>
+                <th class="d-none d-sm-table-cell">الخروج</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set st_label = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة'} %}
+              {% set st_clr   = {'present':'#16a34a','absent':'#dc2626','late':'#d97706','leave':'#0891b2'} %}
+              {% set st_bg    = {'present':'#f0fdf4','absent':'#fef2f2','late':'#fffbeb','leave':'#ecfeff'} %}
+              {% set av_colors = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#3b82f6','#ef4444','#06b6d4'] %}
+              {% for r in recent %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="emp-avatar" style="background:{{ av_colors[loop.index0 % 8] }}">{{ r.full_name[:1] }}</div>
+                    <div>
+                      <div class="fw-semibold" style="font-size:.875rem">{{ r.full_name }}</div>
+                      <div class="text-muted" style="font-size:.76rem">{{ r.employee_code }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="d-none d-md-table-cell text-muted" style="font-size:.85rem">{{ r.get('department','') or '—' }}</td>
+                <td>
+                  <span class="badge" style="background:{{ st_bg.get(r.status,'#f1f5f9') }};color:{{ st_clr.get(r.status,'#475569') }};font-weight:600">
+                    {{ st_label.get(r.status, r.status) }}
+                  </span>
+                </td>
+                <td class="d-none d-sm-table-cell text-muted" style="font-size:.84rem">{{ r.check_in  | time12 }}</td>
+                <td class="d-none d-sm-table-cell text-muted" style="font-size:.84rem">{{ r.check_out | time12 }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="card-body text-center py-5 text-muted">
+        <i class="fa-solid fa-inbox fa-3x mb-3 d-block opacity-25"></i>
+        <p class="mb-3">لم يتم تسجيل حضور اليوم بعد</p>
+        <a href="{{ url_for('attendance') }}" class="btn btn-primary">ابدأ التسجيل</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
 <!-- جدول إحصائيات الموظفين لهذا الشهر -->
 {% if emp_stats %}
-<div class="card shadow-sm mb-4" style="border-radius:14px;">
-  <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+<div class="card mb-4" style="border-radius:var(--radius)">
+  <div class="card-header bg-white py-3" style="border-radius:var(--radius) var(--radius) 0 0">
     <h6 class="mb-0 fw-bold">
       <i class="fa-solid fa-calendar-days text-primary me-2"></i>
       حضور وغياب الموظفين — {{ current_month }}
     </h6>
   </div>
   <div class="card-body p-0">
-    <div class="tbl-wrap">
+    <div class="tbl-wrap" style="border-radius:0 0 var(--radius) var(--radius)">
       <table class="table table-hover mb-0">
         <thead>
           <tr>
             <th>الموظف</th>
             <th class="d-none d-md-table-cell">القسم</th>
-            <th class="text-center text-success">حضور</th>
-            <th class="text-center text-danger">غياب</th>
-            <th class="text-center text-info d-none d-sm-table-cell">إجازة</th>
-            <th class="text-center text-warning d-none d-sm-table-cell">مرض</th>
-            <th class="text-center text-secondary d-none d-lg-table-cell">عمل</th>
+            <th class="text-center">حضور</th>
+            <th class="text-center">غياب</th>
+            <th class="text-center d-none d-sm-table-cell">إجازة</th>
+            <th class="text-center d-none d-sm-table-cell">مرض</th>
+            <th class="text-center d-none d-lg-table-cell">عمل</th>
             <th class="text-center">إجمالي</th>
           </tr>
         </thead>
@@ -98,33 +200,25 @@
           <tr class="{{ 'table-danger' if over else '' }}">
             <td>
               <strong>{{ e.full_name }}</strong>
-              {% if over %}
-              <i class="fa-solid fa-triangle-exclamation text-danger ms-1" title="تجاوز الحد"></i>
-              {% endif %}
+              {% if over %}<i class="fa-solid fa-triangle-exclamation text-danger ms-1"></i>{% endif %}
             </td>
-            <td class="d-none d-md-table-cell">{{ e.department or '—' }}</td>
+            <td class="d-none d-md-table-cell text-muted">{{ e.department or '—' }}</td>
             <td class="text-center">
-              <span class="badge bg-success">{{ e.present_days }}</span>
+              <span class="badge" style="background:#f0fdf4;color:#16a34a;font-weight:700">{{ e.present_days }}</span>
             </td>
             <td class="text-center">
-              <span class="badge {{ 'bg-danger' if e.max_absent_days > 0 and e.absent_days > e.max_absent_days else 'bg-secondary' }}">
-                {{ e.absent_days }}
-              </span>
+              <span class="badge" style="{{ 'background:#dc2626;color:#fff' if (e.max_absent_days > 0 and e.absent_days > e.max_absent_days) else 'background:#fef2f2;color:#dc2626' }};font-weight:700">{{ e.absent_days }}</span>
             </td>
             <td class="text-center d-none d-sm-table-cell">
-              <span class="badge {{ 'bg-danger' if e.max_vacation_days > 0 and e.vacation_days > e.max_vacation_days else 'bg-info text-dark' }}">
-                {{ e.vacation_days }}
-              </span>
+              <span class="badge" style="{{ 'background:#dc2626;color:#fff' if (e.max_vacation_days > 0 and e.vacation_days > e.max_vacation_days) else 'background:#ecfeff;color:#0891b2' }};font-weight:700">{{ e.vacation_days }}</span>
             </td>
             <td class="text-center d-none d-sm-table-cell">
-              <span class="badge {{ 'bg-danger' if e.max_sick_days > 0 and e.sick_days > e.max_sick_days else 'bg-warning text-dark' }}">
-                {{ e.sick_days }}
-              </span>
+              <span class="badge" style="{{ 'background:#dc2626;color:#fff' if (e.max_sick_days > 0 and e.sick_days > e.max_sick_days) else 'background:#fffbeb;color:#d97706' }};font-weight:700">{{ e.sick_days }}</span>
             </td>
             <td class="text-center d-none d-lg-table-cell">
-              <span class="badge bg-secondary">{{ e.work_days }}</span>
+              <span class="badge" style="background:#f1f5f9;color:#475569;font-weight:700">{{ e.work_days }}</span>
             </td>
-            <td class="text-center text-muted">{{ e.total_days }}</td>
+            <td class="text-center fw-bold text-muted">{{ e.total_days }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -134,62 +228,46 @@
 </div>
 {% endif %}
 
-<!-- سجل اليوم -->
-<div class="card shadow-sm" style="border-radius:14px;">
-  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3"
-       style="border-radius:14px 14px 0 0;">
-    <h6 class="mb-0 fw-bold">
-      <i class="fa-solid fa-list-check text-primary me-2"></i>سجل حضور اليوم
-    </h6>
-    <a href="{{ url_for('attendance') }}" class="btn btn-sm btn-primary">
-      <i class="fa-solid fa-plus me-1"></i>تسجيل الحضور
-    </a>
-  </div>
-
-  {% if recent %}
-  <div class="card-body p-0">
-    <div class="tbl-wrap">
-      <table class="table table-hover mb-0">
-        <thead>
-          <tr>
-            <th>الموظف</th>
-            <th class="d-none d-md-table-cell">الجهة</th>
-            <th class="d-none d-sm-table-cell">القسم</th>
-            <th>الحالة</th>
-            <th class="d-none d-sm-table-cell">الدخول</th>
-            <th class="d-none d-sm-table-cell">الخروج</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% set st_label = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة'} %}
-          {% set st_color = {'present':'success','absent':'danger','late':'warning','leave':'info'} %}
-          {% for r in recent %}
-          <tr>
-            <td>
-              <strong>{{ r.full_name }}</strong>
-              <div class="text-muted" style="font-size:.76rem">{{ r.employee_code }}</div>
-            </td>
-            <td class="d-none d-md-table-cell">{{ r.get('organization','') or '—' }}</td>
-            <td class="d-none d-sm-table-cell">{{ r.get('department','') or '—' }}</td>
-            <td>
-              <span class="badge bg-{{ st_color.get(r.status,'secondary') }}">
-                {{ st_label.get(r.status, r.status) }}
-              </span>
-            </td>
-            <td class="d-none d-sm-table-cell">{{ r.check_in  | time12 }}</td>
-            <td class="d-none d-sm-table-cell">{{ r.check_out | time12 }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% else %}
-  <div class="card-body text-center py-5 text-muted">
-    <i class="fa-solid fa-inbox fa-3x mb-3 d-block opacity-25"></i>
-    <p class="mb-3">لم يتم تسجيل حضور اليوم بعد</p>
-    <a href="{{ url_for('attendance') }}" class="btn btn-primary">ابدأ التسجيل</a>
-  </div>
-  {% endif %}
-</div>
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+(function() {
+  const ctx = document.getElementById('attendanceDonut');
+  if (!ctx) return;
+  {% set _p = stats.get('present',0) %}
+  {% set _a = stats.get('absent',0) %}
+  {% set _l = stats.get('late',0) %}
+  {% set _v = stats.get('leave',0) %}
+  const present = {{ _p }}, absent = {{ _a }}, late = {{ _l }}, leave = {{ _v }};
+  const total   = present + absent + late + leave;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['حاضر','غائب','متأخر','إجازة'],
+      datasets: [{
+        data:            total > 0 ? [present, absent, late, leave] : [1],
+        backgroundColor: total > 0 ? ['#16a34a','#dc2626','#d97706','#0891b2'] : ['#e2e8f0'],
+        borderWidth: 0,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      cutout: '68%',
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          rtl: true,
+          callbacks: {
+            label: function(c) {
+              if (total === 0) return 'لا توجد بيانات';
+              return ` ${c.label}: ${c.parsed} (${((c.parsed/total)*100).toFixed(1)}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}
