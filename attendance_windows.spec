@@ -16,6 +16,7 @@ a = Analysis(
         ('export_utils.py',     '.'),
         ('app.py',              '.'),
         ('license.py',          '.'),
+        ('admin_panel.py',      '.'),
         ('static/img/icon.ico', 'static/img'),
     ],
     hiddenimports=[
