@@ -18,6 +18,17 @@ from flask import (
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
+
+# ── مسار قابل للكتابة (يعمل مع PyInstaller على ويندوز بدون Permission denied) ──
+def _writable_dir() -> str:
+    """يُعيد مجلدًا قابلًا للكتابة بغض النظر عن مكان التثبيت"""
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", os.path.expanduser("~"))
+    else:
+        base = os.path.expanduser("~/.config")
+    d = os.path.join(base, "Shahab")
+    os.makedirs(d, exist_ok=True)
+    return d
 import export_utils as eu
 
 # ── تهيئة التطبيق ──────────────────────────────────────────────────────────
@@ -44,14 +55,17 @@ app.config.update(
     TEMPLATES_AUTO_RELOAD=True,
 )
 
-_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".secret_key")
+_KEY_FILE = os.path.join(_writable_dir(), ".secret_key")
 if os.path.exists(_KEY_FILE):
     with open(_KEY_FILE, "rb") as _f:
         app.secret_key = _f.read()
 else:
     app.secret_key = os.urandom(32)
-    with open(_KEY_FILE, "wb") as _f:
-        _f.write(app.secret_key)
+    try:
+        with open(_KEY_FILE, "wb") as _f:
+            _f.write(app.secret_key)
+    except OSError:
+        pass  # إذا تعذّر الحفظ نستمر بمفتاح مؤقت
 
 # ── الديكوراتور ────────────────────────────────────────────────────────────
 

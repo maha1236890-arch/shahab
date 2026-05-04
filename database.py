@@ -9,10 +9,18 @@ import os
 import shutil
 from datetime import datetime, date as _date, timedelta
 
-DB_PATH = os.environ.get(
-    "DB_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "attendance.db")
-)
+def _default_db_path() -> str:
+    """مسار قاعدة البيانات في مجلد قابل للكتابة"""
+    import sys
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", os.path.expanduser("~"))
+    else:
+        base = os.path.expanduser("~/.config")
+    d = os.path.join(base, "Shahab")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, "attendance.db")
+
+DB_PATH = os.environ.get("DB_PATH", _default_db_path())
 
 
 def get_connection():
