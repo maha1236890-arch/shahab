@@ -23,7 +23,7 @@
 <!-- رأس الطباعة (يظهر فقط عند الطباعة) -->
 <div class="print-header">
   <h3 class="mb-1">كشف الحضور والغياب</h3>
-  <p class="mb-0 text-muted">التاريخ: {{ selected_date or today }}</p>
+  <p class="mb-0">يوم <strong>{{ day_name }}</strong> &nbsp;|&nbsp; التاريخ: <strong>{{ date_ar }}</strong> &nbsp;|&nbsp; الوقت: <strong>{{ now_time }}</strong></p>
 </div>
 
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -334,38 +334,54 @@
     absent:  'bg-row-absent',
   };
 
-  // تعبئة وقت الدخول تلقائياً عند اختيار "حاضر"
+  // إظهار/إخفاء حقول الوقت حسب الحالة
   function toggleTimeFields(empId, status) {
-    const isAbsent = status === 'absent';
-    // جدول desktop
-    ['ti_', 'to_'].forEach(prefix => {
-      const el = document.getElementById(prefix + empId);
-      if (el) {
-        el.style.visibility = isAbsent ? 'hidden' : '';
-        const inp = el.querySelector('input');
-        if (inp && isAbsent) inp.value = '';
+    const isAbsent  = status === 'absent';
+    const isPresent = status === 'present';
+    // جدول desktop: ti_ = دخول, to_ = خروج
+    const tiEl = document.getElementById('ti_' + empId);
+    const toEl = document.getElementById('to_' + empId);
+    if (tiEl) {
+      tiEl.style.visibility = isAbsent ? 'hidden' : '';
+      const inp = tiEl.querySelector('input');
+      if (inp && isAbsent) { inp.value = ''; updateDisplay(inp); }
+    }
+    if (toEl) {
+      // خروج: يظهر فقط عند "غائب"، مخفي عند حاضر أو غيرهما
+      toEl.style.visibility = isAbsent ? '' : 'hidden';
+      if (!isAbsent) {
+        const inp = toEl.querySelector('input');
+        if (inp) { inp.value = ''; updateDisplay(inp); }
       }
-    });
+    }
     const exEl = document.getElementById('ex_' + empId);
     if (exEl) exEl.style.display = isAbsent ? '' : 'none';
     // بطاقات mobile
-    ['ti_c_', 'to_c_'].forEach(prefix => {
-      const el = document.getElementById(prefix + empId);
-      if (el) {
-        el.style.display = isAbsent ? 'none' : '';
-      }
-    });
+    const tiCEl = document.getElementById('ti_c_' + empId);
+    const toCEl = document.getElementById('to_c_' + empId);
+    if (tiCEl) tiCEl.style.display = isAbsent ? 'none' : '';
+    if (toCEl) toCEl.style.display = isAbsent ? '' : 'none';
     const exCEl = document.getElementById('ex_c_' + empId);
     if (exCEl) exCEl.style.display = isAbsent ? '' : 'none';
   }
 
-  function autoFillTime(empId) {
-    const inField  = document.querySelector(`input[name="check_in_${empId}"]`);
-    if (inField && !inField.value) {
-      const now = new Date();
-      const hh  = String(now.getHours()).padStart(2, '0');
-      const mm  = String(now.getMinutes()).padStart(2, '0');
-      inField.value = `${hh}:${mm}`;
+  function nowHHMM() {
+    const now = new Date();
+    return String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
+
+  function autoFillTime(empId, status) {
+    const t = nowHHMM();
+    if (status === 'present') {
+      // دخول فقط
+      const inField = document.querySelector(`input[name="check_in_${empId}"]`);
+      if (inField && !inField.value) { inField.value = t; updateDisplay(inField); }
+    } else if (status === 'absent') {
+      // خروج فقط — امسح الدخول واملأ الخروج
+      const inField  = document.querySelector(`input[name="check_in_${empId}"]`);
+      const outField = document.querySelector(`input[name="check_out_${empId}"]`);
+      if (inField)  { inField.value  = ''; updateDisplay(inField); }
+      if (outField && !outField.value) { outField.value = t; updateDisplay(outField); }
     }
   }
 
@@ -376,7 +392,7 @@
       row.classList.add(ROW_BG[sel.value] || '');
     }
     toggleTimeFields(sel.dataset.empid, sel.value);
-    if (sel.value === 'present') autoFillTime(sel.dataset.empid);
+    autoFillTime(sel.dataset.empid, sel.value);
   }
 
   function onStatusChangeCard(sel) {
@@ -386,7 +402,7 @@
       card.classList.add(ROW_BG[sel.value] || '');
     }
     toggleTimeFields(sel.dataset.empid, sel.value);
-    if (sel.value === 'present') autoFillTime(sel.dataset.empid);
+    autoFillTime(sel.dataset.empid, sel.value);
   }
 
   function setAll(status) {
@@ -438,22 +454,18 @@
   updateClock();
   setInterval(updateClock, 10000);
 
-  // عند تحميل الصفحة: عبّئ وقت الدخول لكل موظف حالته حاضر ولا يوجد وقت
+  // عند تحميل الصفحة: عبّئ الأوقات حسب الحالة الابتدائية
   (function autoFillOnLoad() {
-    const now = new Date();
-    const hh  = String(now.getHours()).padStart(2, '0');
-    const mm  = String(now.getMinutes()).padStart(2, '0');
-    const currentTime = `${hh}:${mm}`;
+    const t = nowHHMM();
     document.querySelectorAll('.status-sel').forEach(sel => {
       const empId = sel.dataset.empid;
-      // إخفاء/إظهار الوقت حسب الحالة الابتدائية
       toggleTimeFields(empId, sel.value);
       if (sel.value === 'present') {
         const inField = document.querySelector(`input[name="check_in_${empId}"]`);
-        if (inField && !inField.value) {
-          inField.value = currentTime;
-          updateDisplay(inField);
-        }
+        if (inField && !inField.value) { inField.value = t; updateDisplay(inField); }
+      } else if (sel.value === 'absent') {
+        const outField = document.querySelector(`input[name="check_out_${empId}"]`);
+        if (outField && !outField.value) { outField.value = t; updateDisplay(outField); }
       }
     });
   })();

@@ -277,13 +277,25 @@ def delete_employee_route(emp_id):
 @app.route("/attendance")
 @login_required
 def attendance():
+    from datetime import datetime as _dt
     sel_date     = request.args.get("date", date.today().isoformat())
     emps         = db.get_all_employees()
     existing     = {r["employee_id"]: r for r in db.get_attendance_for_date(sel_date)}
     last_statuses = db.get_employees_last_status(sel_date)
+    _days_ar = ['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد']
+    try:
+        _d = _dt.strptime(sel_date, '%Y-%m-%d')
+        day_name = _days_ar[_d.weekday()]
+        date_ar  = _d.strftime('%d/%m/%Y')
+    except Exception:
+        day_name = ''
+        date_ar  = sel_date
+    now_time = _dt.now().strftime('%I:%M %p').replace('AM','ص').replace('PM','م')
     return render_template("attendance.html", employees=emps,
                            existing=existing, sel_date=sel_date,
-                           last_statuses=last_statuses)
+                           last_statuses=last_statuses,
+                           day_name=day_name, date_ar=date_ar,
+                           now_time=now_time)
 
 
 @app.route("/attendance/save", methods=["POST"])
