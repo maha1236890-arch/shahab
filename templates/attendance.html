@@ -1,0 +1,573 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الحضور{% endblock %}
+
+{% block head %}
+<style>
+  .att-card { border-radius: 12px; transition: box-shadow .15s; }
+  .att-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1) !important; }
+  .bg-row-present { background: #f0fff4 !important; }
+  .bg-row-absent  { background: #fff5f5 !important; }
+  .bg-row-late    { background: #fffbf0 !important; }
+  .bg-row-leave   { background: #f0f8ff !important; }
+  .bg-row-auto    { background: #fff8e1 !important; }
+  .badge-auto {
+    font-size: .67rem; padding: .15rem .45rem;
+    background: #fff3cd; color: #856404;
+    border: 1px solid #ffc107; border-radius: 20px;
+    vertical-align: middle; white-space: nowrap;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الطباعة (يظهر فقط عند الطباعة) -->
+<div class="print-header">
+  <h3 class="mb-1">كشف الحضور والغياب</h3>
+  <p class="mb-0 text-muted">التاريخ: {{ selected_date or today }}</p>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-clipboard-check text-primary me-2"></i>تسجيل الحضور اليومي
+  </h5>
+  <button class="btn btn-sm btn-outline-secondary no-print" onclick="window.print()">
+    <i class="fa-solid fa-print me-1"></i>طباعة
+  </button>
+</div>
+
+<!-- اختيار التاريخ -->
+<div class="card shadow-sm mb-3" style="border-radius:12px;">
+  <div class="card-body py-3">
+    <form method="get" class="d-flex align-items-center gap-3 flex-wrap">
+      <label class="form-label mb-0 fw-semibold">
+        <i class="fa-regular fa-calendar me-1"></i>التاريخ:
+      </label>
+      <input type="date" name="date" class="form-control" style="width:auto;min-width:160px"
+             value="{{ sel_date }}" onchange="this.form.submit()">
+      <span class="badge bg-light text-dark border">
+        <i class="fa-solid fa-users me-1 text-primary"></i>{{ employees|length }} موظف
+      </span>
+      <span class="badge bg-primary" id="live-clock" style="font-size:.9rem;letter-spacing:1px">
+        <i class="fa-regular fa-clock me-1"></i><span id="clock-val"></span>
+      </span>
+    </form>
+  </div>
+</div>
+
+<!-- شريط التعبئة التلقائية -->
+<div class="card shadow-sm mb-3" style="border-radius:12px; border-right: 4px solid #f39c12 !important;">
+  <div class="card-body py-3">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <i class="fa-solid fa-wand-magic-sparkles text-warning fa-lg"></i>
+      <span class="fw-semibold">التعبئة التلقائية</span>
+      <small class="text-muted d-none d-sm-inline">— الحالة تنتقل تلقائياً من آخر تسجيل حتى تغيّرها يدوياً</small>
+      <div class="ms-auto d-flex gap-2 flex-wrap">
+        <form method="post" action="{{ url_for('autofill_day') }}" class="d-inline">
+          <input type="hidden" name="date" value="{{ sel_date }}">
+          <button type="submit" class="btn btn-warning btn-sm">
+            <i class="fa-solid fa-wand-magic-sparkles me-1"></i>عبّئ هذا اليوم
+          </button>
+        </form>
+        <button type="button" class="btn btn-outline-warning btn-sm"
+                data-bs-toggle="modal" data-bs-target="#fillRangeModal">
+          <i class="fa-solid fa-calendar-plus me-1"></i>عبّئ نطاق زمني
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if employees %}
+<form method="post" action="{{ url_for('save_attendance') }}" id="attForm">
+  <input type="hidden" name="date" value="{{ sel_date }}">
+
+  <!-- أزرار تعيين الكل -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <small class="text-muted fw-semibold">تعيين الكل كـ:</small>
+    <button type="button" class="btn btn-sm btn-success"  onclick="setAll('present')">حاضر</button>
+    <button type="button" class="btn btn-sm btn-danger"   onclick="setAll('absent')">غائب</button>
+  </div>
+
+  <!-- Desktop: جدول -->
+  <div class="d-none d-lg-block">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="tbl-wrap">
+        <table class="table table-hover mb-0 align-middle" id="attTable">
+          <thead>
+            <tr>
+              <th style="width:2rem">#</th>
+              <th>الموظف</th>
+              <th>الجهة</th>
+              <th style="min-width:175px">الحالة</th>
+              <th style="min-width:120px">الدخول</th>
+              <th style="min-width:120px">الخروج</th>
+              <th style="min-width:150px">نوع الخروج</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in employees %}
+            {% set ex   = existing.get(emp.id) %}
+            {% set last = last_statuses.get(emp.id) %}
+            {% if ex %}
+              {% set cur_st  = ex.get('status', 'absent') %}
+              {% set is_auto = false %}
+              {% set src     = ex %}
+            {% elif last %}
+              {% set cur_st  = last.get('status', 'absent') %}
+              {% set is_auto = true %}
+              {% set src     = last %}
+            {% else %}
+              {% set cur_st  = 'absent' %}
+              {% set is_auto = false %}
+              {% set src     = {} %}
+            {% endif %}
+            <tr class="bg-row-{{ 'auto' if is_auto else cur_st }}" data-row="{{ emp.id }}">
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>
+                <strong>{{ emp.full_name }}</strong>
+                <div class="text-muted" style="font-size:.76rem">{{ emp.employee_code }}</div>
+              </td>
+              <td style="font-size:.83rem">{{ emp.organization or '—' }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-1 flex-wrap">
+                  <select name="status_{{ emp.id }}"
+                          class="form-select form-select-sm status-sel"
+                          style="width:auto;"
+                          data-row="{{ emp.id }}"
+                          data-empid="{{ emp.id }}"
+                          onchange="onStatusChange(this)">
+                    <option value="present" {{ 'selected' if cur_st in ('present','late') }}>حاضر</option>
+                    <option value="absent"  {{ 'selected' if cur_st in ('absent','leave')  }}>غائب</option>
+                  </select>
+                  <button type="button" class="btn btn-sm btn-outline-danger px-1 py-0"
+                          title="تسجيل غياب لعدة أيام"
+                          onclick="openAbsentModal({{ emp.id }}, '{{ emp.full_name }}', '{{ sel_date }}')"
+                          style="font-size:.75rem;line-height:1.6">
+                    <i class="fa-solid fa-calendar-xmark"></i>
+                  </button>
+                  {% if is_auto %}
+                  <span class="badge-auto" title="مقترح من آخر تسجيل بتاريخ {{ last.get('date','') }}">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> تلقائي
+                  </span>
+                  {% endif %}
+                </div>
+              </td>
+              <td>
+                <div class="time-wrap" id="ti_{{ emp.id }}">
+                  <input type="time" name="check_in_{{ emp.id }}" class="form-control form-control-sm"
+                         value="{{ src.get('check_in', '') or '' }}">
+                </div>
+              </td>
+              <td>
+                <div class="time-wrap" id="to_{{ emp.id }}">
+                  <input type="time" name="check_out_{{ emp.id }}" class="form-control form-control-sm"
+                         value="{{ src.get('check_out', '') or '' }}">
+                </div>
+              </td>
+              <td>
+                <div class="exit-wrap" id="ex_{{ emp.id }}">
+                  <select name="exit_type_{{ emp.id }}" class="form-select form-select-sm">
+                    <option value="">—</option>
+                    <option value="work"     {{ 'selected' if src.get('exit_type') == 'work'     }}>عمل</option>
+                    <option value="vacation" {{ 'selected' if src.get('exit_type') == 'vacation' }}>إجازة</option>
+                    <option value="sick"     {{ 'selected' if src.get('exit_type') == 'sick'     }}>مرض</option>
+                  </select>
+                </div>
+              </td>
+              <td>
+                <input type="text" name="notes_{{ emp.id }}" class="form-control form-control-sm"
+                       value="{{ src.get('notes', '') or '' }}" placeholder="ملاحظة...">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile / Tablet: بطاقات -->
+  <div class="d-lg-none">
+    {% for emp in employees %}
+    {% set ex   = existing.get(emp.id) %}
+    {% set last = last_statuses.get(emp.id) %}
+    {% if ex %}
+      {% set cur_st  = ex.get('status', 'absent') %}
+      {% set is_auto = false %}
+      {% set src     = ex %}
+    {% elif last %}
+      {% set cur_st  = last.get('status', 'absent') %}
+      {% set is_auto = true %}
+      {% set src     = last %}
+    {% else %}
+      {% set cur_st  = 'absent' %}
+      {% set is_auto = false %}
+      {% set src     = {} %}
+    {% endif %}
+    <div class="card shadow-sm mb-3 att-card bg-row-{{ 'auto' if is_auto else cur_st }}"
+         id="card-{{ emp.id }}">
+      <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+          <div>
+            <strong>{{ emp.full_name }}</strong>
+            {% if is_auto %}
+            <span class="badge-auto ms-1">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> تلقائي
+            </span>
+            {% endif %}
+            <div class="text-muted" style="font-size:.76rem">
+              {{ emp.employee_code }}{% if emp.organization %} · {{ emp.organization }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <button type="button" class="btn btn-sm btn-outline-danger px-2"
+                    title="تسجيل غياب لعدة أيام"
+                    onclick="openAbsentModal({{ emp.id }}, '{{ emp.full_name }}', '{{ sel_date }}')">
+              <i class="fa-solid fa-calendar-xmark"></i>
+            </button>
+            <select name="status_{{ emp.id }}"
+                    class="form-select form-select-sm status-sel w-auto"
+                    data-card="{{ emp.id }}"
+                    data-empid="{{ emp.id }}"
+                    onchange="onStatusChangeCard(this)">
+              <option value="present" {{ 'selected' if cur_st in ('present','late') }}>حاضر</option>
+              <option value="absent"  {{ 'selected' if cur_st in ('absent','leave')  }}>غائب</option>
+            </select>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6 time-wrap" id="ti_c_{{ emp.id }}">
+            <label class="form-label small mb-1">وقت الدخول</label>
+            <input type="time" name="check_in_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ src.get('check_in', '') or '' }}">
+          </div>
+          <div class="col-6 time-wrap" id="to_c_{{ emp.id }}">
+            <label class="form-label small mb-1">وقت الخروج</label>
+            <input type="time" name="check_out_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ src.get('check_out', '') or '' }}">
+          </div>
+          <div class="col-12 exit-wrap" id="ex_c_{{ emp.id }}">
+            <label class="form-label small mb-1">سبب الغياب</label>
+            <select name="exit_type_{{ emp.id }}" class="form-select form-select-sm">
+              <option value="">—</option>
+              <option value="work"     {{ 'selected' if src.get('exit_type') == 'work'     }}>عمل</option>
+              <option value="vacation" {{ 'selected' if src.get('exit_type') == 'vacation' }}>إجازة</option>
+              <option value="sick"     {{ 'selected' if src.get('exit_type') == 'sick'     }}>مرض</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">ملاحظات</label>
+            <input type="text" name="notes_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ src.get('notes', '') or '' }}" placeholder="ملاحظة...">
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- زر الحفظ (ثابت أسفل الصفحة) -->
+  <div class="position-sticky bottom-0 bg-white border-top py-3 px-1 mt-3"
+       style="box-shadow: 0 -2px 8px rgba(0,0,0,.07);">
+    <button type="submit" class="btn btn-primary px-5">
+      <i class="fa-solid fa-floppy-disk me-2"></i>حفظ سجلات الحضور
+    </button>
+  </div>
+</form>
+
+{% else %}
+<div class="card shadow-sm text-center py-5">
+  <div class="text-muted">
+    <i class="fa-solid fa-users-slash fa-3x mb-3 d-block opacity-25"></i>
+    <p>لا يوجد موظفون نشطون</p>
+    {% if session.role == 'admin' %}
+    <a href="{{ url_for('add_employee') }}" class="btn btn-primary">إضافة موظف</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal: ملء نطاق زمني -->
+<div class="modal fade" id="fillRangeModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('autofill_range') }}">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">
+            <i class="fa-solid fa-calendar-plus text-warning me-2"></i>تعبئة تلقائية لنطاق زمني
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning py-2 small">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            سيتم ملء <strong>جميع الأيام المفقودة</strong> في النطاق بنقل آخر حالة مسجّلة لكل موظف.
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label fw-semibold">من تاريخ</label>
+              <input type="date" name="fill_from" class="form-control" value="{{ sel_date }}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold">إلى تاريخ</label>
+              <input type="date" name="fill_to" class="form-control" value="{{ sel_date }}" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fa-solid fa-wand-magic-sparkles me-1"></i>ابدأ التعبئة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const ROW_BG = {
+    present: 'bg-row-present',
+    absent:  'bg-row-absent',
+  };
+
+  // تعبئة وقت الدخول تلقائياً عند اختيار "حاضر"
+  function toggleTimeFields(empId, status) {
+    const isAbsent = status === 'absent';
+    // جدول desktop
+    ['ti_', 'to_'].forEach(prefix => {
+      const el = document.getElementById(prefix + empId);
+      if (el) {
+        el.style.visibility = isAbsent ? 'hidden' : '';
+        const inp = el.querySelector('input');
+        if (inp && isAbsent) inp.value = '';
+      }
+    });
+    const exEl = document.getElementById('ex_' + empId);
+    if (exEl) exEl.style.display = isAbsent ? '' : 'none';
+    // بطاقات mobile
+    ['ti_c_', 'to_c_'].forEach(prefix => {
+      const el = document.getElementById(prefix + empId);
+      if (el) {
+        el.style.display = isAbsent ? 'none' : '';
+      }
+    });
+    const exCEl = document.getElementById('ex_c_' + empId);
+    if (exCEl) exCEl.style.display = isAbsent ? '' : 'none';
+  }
+
+  function autoFillTime(empId) {
+    const inField  = document.querySelector(`input[name="check_in_${empId}"]`);
+    if (inField && !inField.value) {
+      const now = new Date();
+      const hh  = String(now.getHours()).padStart(2, '0');
+      const mm  = String(now.getMinutes()).padStart(2, '0');
+      inField.value = `${hh}:${mm}`;
+    }
+  }
+
+  function onStatusChange(sel) {
+    const row = document.querySelector(`tr[data-row="${sel.dataset.row}"]`);
+    if (row) {
+      row.classList.remove(...Object.values(ROW_BG), 'bg-row-auto');
+      row.classList.add(ROW_BG[sel.value] || '');
+    }
+    toggleTimeFields(sel.dataset.empid, sel.value);
+    if (sel.value === 'present') autoFillTime(sel.dataset.empid);
+  }
+
+  function onStatusChangeCard(sel) {
+    const card = document.getElementById(`card-${sel.dataset.card}`);
+    if (card) {
+      card.classList.remove(...Object.values(ROW_BG), 'bg-row-auto');
+      card.classList.add(ROW_BG[sel.value] || '');
+    }
+    toggleTimeFields(sel.dataset.empid, sel.value);
+    if (sel.value === 'present') autoFillTime(sel.dataset.empid);
+  }
+
+  function setAll(status) {
+    document.querySelectorAll('.status-sel').forEach(sel => {
+      sel.value = status;
+      if (sel.dataset.row)  onStatusChange(sel);
+      if (sel.dataset.card) onStatusChangeCard(sel);
+    });
+  }
+
+  // عرض الوقت بتنسيق 12 ساعة بجانب حقل الإدخال
+  function formatTime12(val) {
+    if (!val) return '';
+    const [hStr, mStr] = val.split(':');
+    let h = parseInt(hStr), m = parseInt(mStr);
+    const ampm = h >= 12 ? 'م' : 'ص';
+    h = h % 12 || 12;
+    return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+  }
+
+  function updateDisplay(input) {
+    const disp = input.nextElementSibling;
+    if (disp && disp.classList.contains('time-display')) {
+      disp.textContent = formatTime12(input.value);
+    }
+  }
+
+  document.querySelectorAll('input[type="time"]').forEach(inp => {
+    // أضف span للعرض بعد كل حقل وقت
+    const span = document.createElement('span');
+    span.className = 'time-display text-muted ms-1';
+    span.style.fontSize = '.8rem';
+    span.textContent = formatTime12(inp.value);
+    inp.insertAdjacentElement('afterend', span);
+    inp.addEventListener('change', () => updateDisplay(inp));
+    inp.addEventListener('input',  () => updateDisplay(inp));
+  });
+
+  // ساعة حية تتحدث كل دقيقة
+  function updateClock() {
+    const now  = new Date();
+    const hh   = now.getHours();
+    const mm   = String(now.getMinutes()).padStart(2, '0');
+    const ampm = hh >= 12 ? 'م' : 'ص';
+    const h12  = hh % 12 || 12;
+    const el   = document.getElementById('clock-val');
+    if (el) el.textContent = `${h12}:${mm} ${ampm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 10000);
+
+  // عند تحميل الصفحة: عبّئ وقت الدخول لكل موظف حالته حاضر ولا يوجد وقت
+  (function autoFillOnLoad() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2, '0');
+    const mm  = String(now.getMinutes()).padStart(2, '0');
+    const currentTime = `${hh}:${mm}`;
+    document.querySelectorAll('.status-sel').forEach(sel => {
+      const empId = sel.dataset.empid;
+      // إخفاء/إظهار الوقت حسب الحالة الابتدائية
+      toggleTimeFields(empId, sel.value);
+      if (sel.value === 'present') {
+        const inField = document.querySelector(`input[name="check_in_${empId}"]`);
+        if (inField && !inField.value) {
+          inField.value = currentTime;
+          updateDisplay(inField);
+        }
+      }
+    });
+  })();
+</script>
+
+<!-- ===== Modal تسجيل غياب لعدة أيام ===== -->
+<div class="modal fade" id="bulkAbsentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h6 class="modal-title fw-bold">
+          <i class="fa-solid fa-calendar-xmark me-2"></i>
+          تسجيل غياب لعدة أيام
+        </h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('bulk_absent') }}">
+        <div class="modal-body">
+          <input type="hidden" name="emp_id" id="ba_emp_id">
+
+          <div class="alert alert-warning py-2 mb-3" id="ba_emp_name_box">
+            <i class="fa-solid fa-user me-1"></i>
+            <strong id="ba_emp_name">—</strong>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="fa-regular fa-calendar me-1"></i>تاريخ بداية الغياب
+            </label>
+            <input type="date" name="from_date" id="ba_from_date" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="fa-solid fa-hashtag me-1"></i>عدد الأيام
+            </label>
+            <div class="input-group">
+              <button type="button" class="btn btn-outline-secondary" onclick="changeDays(-1)">-</button>
+              <input type="number" name="num_days" id="ba_num_days" class="form-control text-center fw-bold"
+                     min="1" max="90" value="1" required>
+              <button type="button" class="btn btn-outline-secondary" onclick="changeDays(1)">+</button>
+            </div>
+            <div class="form-text text-success">
+              <i class="fa-solid fa-circle-check me-1"></i>
+              سيُضبط الحد الأقصى لهذا النوع تلقائياً بعدد الأيام المدخلة
+            </div>
+            <div class="form-text" id="ba_date_preview"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              <i class="fa-solid fa-tag me-1"></i>سبب الغياب
+            </label>
+            <select name="exit_type" class="form-select">
+              <option value="">— غياب بدون سبب —</option>
+              <option value="vacation">إجازة</option>
+              <option value="sick">مرض</option>
+              <option value="work">عمل خارجي</option>
+            </select>
+          </div>
+
+          <div class="mb-1">
+            <label class="form-label fw-semibold">
+              <i class="fa-regular fa-note-sticky me-1"></i>ملاحظة (اختياري)
+            </label>
+            <input type="text" name="notes" class="form-control" placeholder="مثل: إجازة سنوية...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fa-solid fa-floppy-disk me-1"></i>حفظ الغياب
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openAbsentModal(empId, empName, selDate) {
+    document.getElementById('ba_emp_id').value    = empId;
+    document.getElementById('ba_emp_name').textContent = empName;
+    document.getElementById('ba_from_date').value = selDate;
+    document.getElementById('ba_num_days').value  = 1;
+    updateDatePreview();
+    new bootstrap.Modal(document.getElementById('bulkAbsentModal')).show();
+  }
+
+  function changeDays(delta) {
+    const inp = document.getElementById('ba_num_days');
+    inp.value = Math.max(1, Math.min(90, parseInt(inp.value || 1) + delta));
+    updateDatePreview();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('ba_num_days');
+    if (inp) inp.addEventListener('input', updateDatePreview);
+    const df  = document.getElementById('ba_from_date');
+    if (df)  df.addEventListener('change', updateDatePreview);
+  });
+
+  function updateDatePreview() {
+    const from = document.getElementById('ba_from_date').value;
+    const n    = parseInt(document.getElementById('ba_num_days').value) || 1;
+    const prev = document.getElementById('ba_date_preview');
+    if (!from) { prev.textContent = ''; return; }
+    const d0 = new Date(from);
+    const d1 = new Date(d0);
+    d1.setDate(d0.getDate() + n - 1);
+    const fmt = d => d.toLocaleDateString('ar-SA', {year:'numeric',month:'short',day:'numeric'});
+    prev.textContent = n === 1
+      ? `يوم واحد: ${fmt(d0)}`
+      : `من ${fmt(d0)} إلى ${fmt(d1)} (${n} أيام)`;
+  }
+</script>
+{% endblock %}

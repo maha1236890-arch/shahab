@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}المستخدمون{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-user-gear text-primary me-2"></i>إدارة المستخدمين
+  </h5>
+</div>
+
+<div class="row g-4">
+
+  <!-- قائمة المستخدمين -->
+  <div class="col-lg-8 order-2 order-lg-1">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-users text-primary me-2"></i>
+          المستخدمون الحاليون
+          <span class="badge bg-secondary fw-normal ms-1">{{ users|length }}</span>
+        </h6>
+      </div>
+      <div class="card-body p-0">
+        <div class="tbl-wrap">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>اسم المستخدم</th>
+                <th>الدور</th>
+                <th class="d-none d-sm-table-cell">تاريخ الإنشاء</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr class="{{ 'table-secondary opacity-50' if not u.is_active }}">
+                <td class="text-muted">{{ loop.index }}</td>
+                <td>
+                  <strong>{{ u.full_name }}</strong>
+                  {% if not u.is_active %}
+                  <span class="badge bg-danger ms-1" style="font-size:.68rem">معطَّل</span>
+                  {% endif %}
+                </td>
+                <td><code>{{ u.username }}</code></td>
+                <td>
+                  <span class="badge {{ 'bg-primary' if u.role == 'admin' else 'bg-secondary' }}">
+                    {{ 'مدير' if u.role == 'admin' else 'موظف' }}
+                  </span>
+                </td>
+                <td class="d-none d-sm-table-cell">
+                  <small class="text-muted">{{ u.created_at[:10] if u.created_at else '—' }}</small>
+                </td>
+                <td>
+                  {% if u.id != session.user_id %}
+                  <div class="d-flex gap-1">
+                    <form method="post"
+                          action="{{ url_for('toggle_user', user_id=u.id) }}"
+                          class="d-inline">
+                      <button type="submit"
+                              class="btn btn-sm {{ 'btn-outline-success' if not u.is_active else 'btn-outline-warning' }}"
+                              title="{{ 'تفعيل' if not u.is_active else 'تعطيل' }}">
+                        <i class="fa-solid {{ 'fa-lock-open' if not u.is_active else 'fa-lock' }}"></i>
+                      </button>
+                    </form>
+                    <form method="post"
+                          action="{{ url_for('delete_user', user_id=u.id) }}"
+                          class="d-inline"
+                          onsubmit="return confirm('هل تريد حذف المستخدم: {{ u.username }}؟')">
+                      <button class="btn btn-sm btn-outline-danger">
+                        <i class="fa-solid fa-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                  {% else %}
+                  <span class="badge bg-light text-muted border" style="font-size:.75rem">
+                    حسابك الحالي
+                  </span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج إضافة مستخدم -->
+  <div class="col-lg-4 order-1 order-lg-2">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-user-plus text-primary me-2"></i>إضافة مستخدم جديد
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('add_user') }}">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">الاسم الكامل</label>
+            <input type="text" name="full_name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">اسم المستخدم</label>
+            <input type="text" name="username" class="form-control" required
+                   autocomplete="off">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">كلمة المرور</label>
+            <input type="password" name="password" class="form-control"
+                   required minlength="6" autocomplete="new-password">
+            <div class="form-text">6 أحرف على الأقل</div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold">الدور</label>
+            <select name="role" class="form-select">
+              <option value="employee">موظف</option>
+              <option value="admin">مدير النظام</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-plus me-1"></i>إضافة مستخدم
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

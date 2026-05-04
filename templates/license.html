@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}الترخيص{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-md-7">
+
+    {# ── حالة الترخيص الحالي ── #}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header {% if status.valid %}bg-success{% else %}bg-danger{% endif %} text-white">
+        <i class="fa-solid fa-shield-halved me-2"></i>حالة الترخيص الحالي
+      </div>
+      <div class="card-body">
+        {% if status.valid %}
+          <div class="alert alert-success py-2 mb-3">
+            <i class="fa-solid fa-circle-check me-1"></i>
+            الترخيص ساري المفعول
+          </div>
+          <table class="table table-bordered table-sm">
+            <tr>
+              <th class="bg-light" style="width:40%">اسم العميل / الجهة</th>
+              <td><strong>{{ status.customer }}</strong></td>
+            </tr>
+            <tr>
+              <th class="bg-light">تاريخ الانتهاء</th>
+              <td>{{ status.expire }}</td>
+            </tr>
+            <tr>
+              <th class="bg-light">الأيام المتبقية</th>
+              <td>
+                {% if status.days_left == 99999 %}
+                  <span class="badge bg-success fs-6">مدى الحياة</span>
+                {% elif status.days_left < 14 %}
+                  <span class="badge bg-danger fs-6">{{ status.days_left }} يوم — قريب الانتهاء!</span>
+                {% elif status.days_left < 30 %}
+                  <span class="badge bg-warning text-dark fs-6">{{ status.days_left }} يوم</span>
+                {% else %}
+                  <span class="badge bg-success fs-6">{{ status.days_left }} يوم</span>
+                {% endif %}
+              </td>
+            </tr>
+          </table>
+        {% else %}
+          <div class="alert alert-danger py-2">
+            <i class="fa-solid fa-circle-xmark me-1"></i>
+            <strong>الترخيص غير صالح:</strong> {{ status.reason }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── إدخال مفتاح جديد ── #}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <i class="fa-solid fa-key me-2"></i>
+        {% if status.valid %}تحديث مفتاح الترخيص{% else %}تفعيل الترخيص{% endif %}
+      </div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold">مفتاح الترخيص</label>
+            <input type="text" name="license_key" class="form-control form-control-lg font-monospace"
+                   placeholder="XXXXXX-XXXXXX-XXXXXX-..."
+                   autocomplete="off" autocorrect="off" spellcheck="false"
+                   dir="ltr" required>
+            <div class="form-text text-muted">
+              يمكنك الحصول على مفتاح الترخيص من المورّد بعد الشراء.
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-shield-check me-1"></i>تفعيل المفتاح
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="text-center mt-3">
+      <a href="{{ url_for('about') }}" class="btn btn-link text-secondary">
+        <i class="fa-solid fa-arrow-right me-1"></i>العودة
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}سجل التعديلات{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>سجل التعديلات
+    <span class="badge bg-secondary fw-normal ms-1">{{ logs|length }}</span>
+  </h5>
+  <span class="text-muted small">آخر 300 عملية</span>
+</div>
+
+<div class="card shadow-sm" style="border-radius:14px;">
+  <div class="card-body p-2 pb-0">
+    <input type="text" id="logSearch" class="form-control form-control-sm mb-2"
+           placeholder="🔍 ابحث في السجل...">
+  </div>
+  <div class="card-body p-0">
+    {% if logs %}
+    <div class="tbl-wrap">
+      <table class="table table-hover mb-0" id="logTable">
+        <thead>
+          <tr>
+            <th style="width:160px">التاريخ والوقت</th>
+            <th>المستخدم</th>
+            <th>الإجراء</th>
+            <th>التفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td style="font-size:.8rem;white-space:nowrap" class="text-muted">
+              {{ log.created_at[:16] if log.created_at else '—' }}
+            </td>
+            <td>
+              <span class="badge bg-primary fw-normal">{{ log.username or '—' }}</span>
+            </td>
+            <td>
+              {% set action_color = {
+                'إضافة موظف': 'success',
+                'تعديل موظف': 'warning',
+                'حذف موظف': 'danger',
+                'تسجيل حضور': 'info',
+                'استيراد موظفين': 'primary',
+                'إضافة عطلة': 'success',
+                'حذف عطلة': 'danger',
+                'تعديل إعدادات': 'secondary',
+              } %}
+              <span class="badge bg-{{ action_color.get(log.action, 'secondary') }}-subtle
+                                text-{{ action_color.get(log.action, 'secondary') }}
+                                border border-{{ action_color.get(log.action, 'secondary') }}-subtle">
+                {{ log.action }}
+              </span>
+            </td>
+            <td style="font-size:.85rem" class="text-muted">{{ log.details or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="fa-solid fa-clock-rotate-left fa-3x mb-3 d-block opacity-25"></i>
+      <p>لا توجد عمليات مسجّلة بعد</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('logSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#logTable tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

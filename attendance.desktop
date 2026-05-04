@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=نظام الحضور والغياب
+Name[ar]=نظام الحضور والغياب
+Comment=برنامج تسجيل الحضور والغياب للموظفين
+Exec=/home/mgg/attendance_system/dist/attendance/attendance
+Icon=/home/mgg/attendance_system/static/img/icon.png
+Terminal=false
+Categories=Office;
+StartupWMClass=attendance
+Path=/home/mgg/attendance_system/dist/attendance

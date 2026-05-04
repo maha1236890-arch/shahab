@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}تسجيل الحضور{% endblock %}
+
+{% block head %}
+<style>
+  .att-card { border-radius: 12px; transition: box-shadow .15s; }
+  .att-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1) !important; }
+  .status-badge {
+    display: inline-block; padding: .2rem .7rem;
+    border-radius: 20px; font-size: .78rem; font-weight: 600;
+  }
+  .bg-row-present { background: #f0fff4 !important; }
+  .bg-row-absent  { background: #fff5f5 !important; }
+  .bg-row-late    { background: #fffbf0 !important; }
+  .bg-row-leave   { background: #f0f8ff !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-clipboard-check text-primary me-2"></i>تسجيل الحضور اليومي
+  </h5>
+</div>
+
+<!-- اختيار التاريخ -->
+<div class="card shadow-sm mb-4" style="border-radius:12px;">
+  <div class="card-body py-3">
+    <form method="get" class="d-flex align-items-center gap-3 flex-wrap">
+      <label class="form-label mb-0 fw-semibold">
+        <i class="fa-regular fa-calendar me-1"></i>التاريخ:
+      </label>
+      <input type="date" name="date" class="form-control" style="width:auto;min-width:160px"
+             value="{{ sel_date }}" onchange="this.form.submit()">
+      <span class="badge bg-light text-dark border">
+        <i class="fa-solid fa-users me-1 text-primary"></i>{{ employees|length }} موظف
+      </span>
+    </form>
+  </div>
+</div>
+
+{% if employees %}
+<form method="post" action="{{ url_for('save_attendance') }}" id="attForm">
+  <input type="hidden" name="date" value="{{ sel_date }}">
+
+  <!-- أزرار تعيين الكل -->
+  <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+    <small class="text-muted fw-semibold">تعيين الكل كـ:</small>
+    <button type="button" class="btn btn-sm btn-success"  onclick="setAll('present')">حاضر</button>
+    <button type="button" class="btn btn-sm btn-danger"   onclick="setAll('absent')">غائب</button>
+    <button type="button" class="btn btn-sm btn-warning"  onclick="setAll('late')">متأخر</button>
+    <button type="button" class="btn btn-sm btn-info"     onclick="setAll('leave')">إجازة</button>
+  </div>
+
+  <!-- Desktop: جدول -->
+  <div class="d-none d-lg-block">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="tbl-wrap">
+        <table class="table table-hover mb-0 align-middle" id="attTable">
+          <thead>
+            <tr>
+              <th style="width:2rem">#</th>
+              <th>الموظف</th>
+              <th>الجهة</th>
+              <th style="min-width:140px">الحالة</th>
+              <th style="min-width:120px">الدخول</th>
+              <th style="min-width:120px">الخروج</th>
+              <th style="min-width:150px">نوع الخروج</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in employees %}
+            {% set ex = existing.get(emp.id, {}) %}
+            {% set cur_st = ex.get('status', 'absent') %}
+            <tr class="bg-row-{{ cur_st }}" data-row="{{ emp.id }}">
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>
+                <strong>{{ emp.full_name }}</strong>
+                <div class="text-muted" style="font-size:.76rem">{{ emp.employee_code }}</div>
+              </td>
+              <td style="font-size:.83rem">{{ emp.organization or '—' }}</td>
+              <td>
+                <select name="status_{{ emp.id }}"
+                        class="form-select form-select-sm status-sel"
+                        data-row="{{ emp.id }}"
+                        onchange="onStatusChange(this)">
+                  <option value="present" {{ 'selected' if cur_st == 'present' }}>حاضر</option>
+                  <option value="absent"  {{ 'selected' if cur_st == 'absent'  }}>غائب</option>
+                  <option value="late"    {{ 'selected' if cur_st == 'late'    }}>متأخر</option>
+                  <option value="leave"   {{ 'selected' if cur_st == 'leave'   }}>إجازة</option>
+                </select>
+              </td>
+              <td>
+                <input type="time" name="check_in_{{ emp.id }}" class="form-control form-control-sm"
+                       value="{{ ex.get('check_in', '') or '' }}">
+              </td>
+              <td>
+                <input type="time" name="check_out_{{ emp.id }}" class="form-control form-control-sm"
+                       value="{{ ex.get('check_out', '') or '' }}">
+              </td>
+              <td>
+                <select name="exit_type_{{ emp.id }}" class="form-select form-select-sm">
+                  <option value="">—</option>
+                  <option value="work"     {{ 'selected' if ex.get('exit_type') == 'work'     }}>في مهمة عمل</option>
+                  <option value="vacation" {{ 'selected' if ex.get('exit_type') == 'vacation' }}>إجازة</option>
+                  <option value="sick"     {{ 'selected' if ex.get('exit_type') == 'sick'     }}>مرض</option>
+                </select>
+              </td>
+              <td>
+                <input type="text" name="notes_{{ emp.id }}" class="form-control form-control-sm"
+                       value="{{ ex.get('notes', '') or '' }}" placeholder="ملاحظة...">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile / Tablet: بطاقات -->
+  <div class="d-lg-none">
+    {% for emp in employees %}
+    {% set ex = existing.get(emp.id, {}) %}
+    {% set cur_st = ex.get('status', 'absent') %}
+    <div class="card shadow-sm mb-3 att-card bg-row-{{ cur_st }}" id="card-{{ emp.id }}">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <strong>{{ emp.full_name }}</strong>
+            <div class="text-muted" style="font-size:.76rem">
+              {{ emp.employee_code }}{% if emp.organization %} · {{ emp.organization }}{% endif %}
+            </div>
+          </div>
+          <select name="status_{{ emp.id }}"
+                  class="form-select form-select-sm status-sel w-auto"
+                  data-card="{{ emp.id }}"
+                  onchange="onStatusChangeCard(this)">
+            <option value="present" {{ 'selected' if cur_st == 'present' }}>حاضر</option>
+            <option value="absent"  {{ 'selected' if cur_st == 'absent'  }}>غائب</option>
+            <option value="late"    {{ 'selected' if cur_st == 'late'    }}>متأخر</option>
+            <option value="leave"   {{ 'selected' if cur_st == 'leave'   }}>إجازة</option>
+          </select>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">وقت الدخول</label>
+            <input type="time" name="check_in_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ ex.get('check_in', '') or '' }}">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">وقت الخروج</label>
+            <input type="time" name="check_out_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ ex.get('check_out', '') or '' }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">نوع الخروج</label>
+            <select name="exit_type_{{ emp.id }}" class="form-select form-select-sm">
+              <option value="">—</option>
+              <option value="work"     {{ 'selected' if ex.get('exit_type') == 'work'     }}>في مهمة عمل</option>
+              <option value="vacation" {{ 'selected' if ex.get('exit_type') == 'vacation' }}>إجازة</option>
+              <option value="sick"     {{ 'selected' if ex.get('exit_type') == 'sick'     }}>مرض</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">ملاحظات</label>
+            <input type="text" name="notes_{{ emp.id }}" class="form-control form-control-sm"
+                   value="{{ ex.get('notes', '') or '' }}" placeholder="ملاحظة...">
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- زر الحفظ (ثابت أسفل الصفحة) -->
+  <div class="position-sticky bottom-0 bg-white border-top py-3 px-1 mt-3"
+       style="border-radius:0 0 12px 12px; box-shadow: 0 -2px 8px rgba(0,0,0,.07);">
+    <button type="submit" class="btn btn-primary px-5">
+      <i class="fa-solid fa-floppy-disk me-2"></i>حفظ سجلات الحضور
+    </button>
+  </div>
+</form>
+
+{% else %}
+<div class="card shadow-sm text-center py-5">
+  <div class="text-muted">
+    <i class="fa-solid fa-users-slash fa-3x mb-3 d-block opacity-25"></i>
+    <p>لا يوجد موظفون نشطون</p>
+    {% if session.role == 'admin' %}
+    <a href="{{ url_for('add_employee') }}" class="btn btn-primary">إضافة موظف</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const ROW_BG = {
+    present: 'bg-row-present',
+    absent:  'bg-row-absent',
+    late:    'bg-row-late',
+    leave:   'bg-row-leave',
+  };
+
+  function onStatusChange(sel) {
+    const row = document.querySelector(`tr[data-row="${sel.dataset.row}"]`);
+    if (row) {
+      Object.values(ROW_BG).forEach(c => row.classList.remove(c));
+      row.classList.add(ROW_BG[sel.value] || '');
+    }
+  }
+
+  function onStatusChangeCard(sel) {
+    const card = document.getElementById(`card-${sel.dataset.card}`);
+    if (card) {
+      Object.values(ROW_BG).forEach(c => card.classList.remove(c));
+      card.classList.add(ROW_BG[sel.value] || '');
+    }
+  }
+
+  function setAll(status) {
+    document.querySelectorAll('.status-sel').forEach(sel => {
+      sel.value = status;
+      if (sel.dataset.row)  onStatusChange(sel);
+      if (sel.dataset.card) onStatusChangeCard(sel);
+    });
+  }
+</script>
+{% endblock %}

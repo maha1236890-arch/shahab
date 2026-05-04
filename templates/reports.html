@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}التقارير{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-chart-bar text-primary me-2"></i>تقارير الحضور
+  </h5>
+</div>
+
+<!-- فلاتر البحث -->
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-body">
+    <form method="get" id="reportForm">
+      <div class="row g-3">
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label fw-semibold">من تاريخ</label>
+          <input type="date" name="from_date" class="form-control" value="{{ from_date }}">
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label fw-semibold">إلى تاريخ</label>
+          <input type="date" name="to_date" class="form-control" value="{{ to_date }}">
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label fw-semibold">القسم</label>
+          <select name="department" class="form-select">
+            <option value="">— الكل —</option>
+            {% for d in departments %}
+            <option value="{{ d }}" {{ 'selected' if d == dept }}>{{ d }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label fw-semibold">الفرع</label>
+          <select name="branch" class="form-select">
+            <option value="">— الكل —</option>
+            {% for br in all_branches %}
+            <option value="{{ br.name }}" {{ 'selected' if br.name == branch }}>{{ br.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label class="form-label fw-semibold">الموظف</label>
+          <select name="employee_id" class="form-select">
+            <option value="">— الكل —</option>
+            {% for e in all_employees %}
+            <option value="{{ e.id }}" {{ 'selected' if e.id|string == emp_id }}>
+              {{ e.full_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-3 flex-wrap">
+        <button type="submit" name="search" value="1" class="btn btn-primary">
+          <i class="fa-solid fa-magnifying-glass me-1"></i>بحث
+        </button>
+        {% if searched and data %}
+        <a href="{{ url_for('export_excel', from_date=from_date, to_date=to_date,
+                             department=dept, branch=branch, employee_id=emp_id) }}"
+           class="btn btn-success" title="تحميل ملف Excel">
+          <i class="fa-solid fa-file-excel me-1"></i>Excel
+        </a>
+        <a href="{{ url_for('export_pdf', from_date=from_date, to_date=to_date,
+                             department=dept, branch=branch, employee_id=emp_id) }}"
+           class="btn btn-danger" title="تحميل ملف PDF">
+          <i class="fa-solid fa-file-pdf me-1"></i>PDF
+        </a>
+        <button type="button" onclick="window.print()" class="btn btn-secondary" title="طباعة التقرير">
+          <i class="fa-solid fa-print me-1"></i>طباعة
+        </button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if searched %}
+  {% if data %}
+  <!-- ملخص الإحصاء -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {% set st_map   = {'present':('حاضر','success'), 'absent':('غائب','danger'),
+                       'late':('متأخر','warning'), 'leave':('إجازة','info')} %}
+    {% for st, (lbl, col) in st_map.items() %}
+    {% if status_counts.get(st) %}
+    <span class="badge bg-{{ col }} px-3 py-2" style="font-size:.83rem">
+      {{ lbl }}: {{ status_counts[st] }}
+    </span>
+    {% endif %}
+    {% endfor %}
+    <span class="badge bg-secondary px-3 py-2" style="font-size:.83rem">
+      الإجمالي: {{ data|length }}
+    </span>
+  </div>
+
+  <!-- جدول النتائج -->
+  <div class="card shadow-sm" style="border-radius:14px;">
+    <div class="card-body p-0">
+      <div class="tbl-wrap">
+        <table class="table table-hover table-striped mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الموظف</th>
+              <th class="d-none d-md-table-cell">الجهة</th>
+              <th class="d-none d-sm-table-cell">القسم</th>
+              <th class="d-none d-lg-table-cell">الفرع</th>
+              <th>التاريخ</th>
+              <th>الحالة</th>
+              <th class="d-none d-sm-table-cell">الدخول</th>
+              <th class="d-none d-sm-table-cell">الخروج</th>
+              <th class="d-none d-md-table-cell">نوع الخروج</th>
+              <th class="d-none d-lg-table-cell">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set badge_map   = {'present':'success','absent':'danger','late':'warning','leave':'info'} %}
+            {% set st_ar       = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة'} %}
+            {% set exittype_ar = {'work':'عمل','vacation':'إجازة','sick':'مرض'} %}
+            {% for r in data %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>
+                <strong>{{ r.full_name }}</strong>
+                <div class="text-muted d-sm-none" style="font-size:.75rem">{{ r.date }}</div>
+              </td>
+              <td class="d-none d-md-table-cell">{{ r.get('organization','') or '—' }}</td>
+              <td class="d-none d-sm-table-cell">{{ r.get('department','') or '—' }}</td>
+              <td class="d-none d-lg-table-cell">{{ r.get('branch','') or '—' }}</td>
+              <td>{{ r.date }}</td>
+              <td>
+                <span class="badge bg-{{ badge_map.get(r.status,'secondary') }}">
+                  {{ st_ar.get(r.status, r.status) }}
+                </span>
+              </td>
+              <td class="d-none d-sm-table-cell">{{ r.check_in  | time12 }}</td>
+              <td class="d-none d-sm-table-cell">{{ r.check_out | time12 }}</td>
+              <td class="d-none d-md-table-cell">{{ exittype_ar.get(r.get('exit_type',''),'') or '—' }}</td>
+              <td class="d-none d-lg-table-cell">
+                <small>{{ r.notes or '—' }}</small>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="fa-solid fa-inbox fa-3x mb-3 d-block opacity-25"></i>
+    <p>لا توجد سجلات في هذا النطاق الزمني</p>
+  </div>
+  {% endif %}
+
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fa-solid fa-magnifying-glass fa-3x mb-3 d-block opacity-25"></i>
+  <p>اختر نطاقاً زمنياً ثم اضغط <strong>بحث</strong></p>
+</div>
+{% endif %}
+
+{% endblock %}

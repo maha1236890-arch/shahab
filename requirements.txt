@@ -1,0 +1,12 @@
+flask>=3.0.0
+bcrypt>=3.2
+openpyxl>=3.1.0
+reportlab>=3.6.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+
+# واجهة سطح المكتب (مثبّتة من حزم النظام — غير مطلوبة في Docker)
+# sudo apt install python3-pyqt5 python3-pyqt5.qtwebengine
+# PyQt5>=5.15
+
+

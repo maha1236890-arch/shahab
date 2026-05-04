@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}سياسة الخصوصية — شهاب{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-3">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <i class="fa-solid fa-shield-halved me-2"></i>سياسة الخصوصية
+        <small class="ms-3 opacity-75">آخر تحديث: مايو 2026</small>
+      </div>
+      <div class="card-body p-4" style="line-height:2;">
+
+        <h5 class="fw-bold text-primary">1. البيانات التي يجمعها التطبيق</h5>
+        <p>
+          يعمل تطبيق <strong>شهاب</strong> بشكل كامل على جهاز المستخدم دون الاتصال بأي خادم خارجي.
+          جميع البيانات (بيانات الموظفين، سجلات الحضور، الإعدادات) تُخزَّن محلياً في قاعدة بيانات
+          على الجهاز فقط.
+        </p>
+
+        <h5 class="fw-bold text-primary">2. مشاركة البيانات</h5>
+        <p>
+          لا يُشارك التطبيق أي بيانات مع أطراف ثالثة. لا توجد اتصالات بالإنترنت، ولا تحليلات،
+          ولا إعلانات.
+        </p>
+
+        <h5 class="fw-bold text-primary">3. البيانات الشخصية</h5>
+        <p>
+          يخزّن التطبيق بيانات الموظفين (الاسم، الرقم الوظيفي، القسم) لأغراض إدارة الحضور فقط.
+          يتحمل مشغّل البرنامج مسؤولية حماية هذه البيانات وفق قوانين حماية البيانات المعمول بها
+          في بلده.
+        </p>
+
+        <h5 class="fw-bold text-primary">4. الأمان</h5>
+        <p>
+          تُحمى البيانات بكلمة مرور للدخول. يُوصى بعمل نسخ احتياطية دورية من داخل التطبيق.
+        </p>
+
+        <h5 class="fw-bold text-primary">5. التواصل</h5>
+        <p>
+          لأي استفسار بخصوص الخصوصية، يرجى التواصل مع المطوّر عبر:
+          <strong>MGG Software</strong>
+        </p>
+
+      </div>
+    </div>
+
+    {# نسخة إنجليزية مطلوبة لـ Microsoft Store #}
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-header bg-secondary text-white">
+        <i class="fa-solid fa-globe me-2"></i>Privacy Policy (English)
+        <small class="ms-3 opacity-75">Last updated: May 2026</small>
+      </div>
+      <div class="card-body p-4" style="line-height:2; direction:ltr; text-align:left;">
+
+        <h5 class="fw-bold">1. Data Collection</h5>
+        <p>
+          <strong>Shahab</strong> operates entirely on the user's local device with no external
+          server connections. All data (employees, attendance records, settings) is stored locally
+          in a database on the device only.
+        </p>
+
+        <h5 class="fw-bold">2. Data Sharing</h5>
+        <p>
+          The application does not share any data with third parties. There are no internet
+          connections, no analytics, and no advertisements.
+        </p>
+
+        <h5 class="fw-bold">3. Personal Data</h5>
+        <p>
+          The application stores employee data (name, employee ID, department) solely for
+          attendance management purposes. The operator of the software is responsible for
+          protecting this data in accordance with applicable data protection laws.
+        </p>
+
+        <h5 class="fw-bold">4. Security</h5>
+        <p>
+          Data is protected by a login password. Regular backups are recommended using the
+          built-in backup feature.
+        </p>
+
+        <h5 class="fw-bold">5. Contact</h5>
+        <p>
+          For any privacy inquiries, please contact the developer:
+          <strong>MGG Software</strong>
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

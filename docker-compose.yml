@@ -1,0 +1,11 @@
+services:
+  attendance:
+    build: .
+    image: attendance-system:latest
+    container_name: attendance_app
+    ports:
+      - "5000:5000"
+    volumes:
+      # قاعدة البيانات خارج الحاوية (تبقى عند إعادة البناء)
+      - ./data:/app/data
+    restart: unless-stopped

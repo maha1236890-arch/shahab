@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% block title %}ملخص الحضور{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<style>
+  .view-tab { border-radius: 8px !important; font-size: .9rem; }
+  .view-tab.active { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+  .rate-circle {
+    width: 80px; height: 80px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 700;
+  }
+  .progress { height: 8px; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-calendar-days text-primary me-2"></i>ملخص الحضور
+  </h5>
+</div>
+
+<!-- فلاتر -->
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-body">
+    <form method="get" id="filterForm">
+
+      <!-- تبويب يومي / أسبوعي / شهري -->
+      <div class="d-flex gap-2 mb-3 flex-wrap">
+        <span class="text-muted fw-semibold align-self-center">التجميع:</span>
+        {% for val, lbl in [('daily','يومي'), ('weekly','أسبوعي'), ('monthly','شهري')] %}
+        <a href="{{ url_for('reports_summary', view=val,
+                             from_date=from_date, to_date=to_date) }}"
+           class="btn btn-outline-primary view-tab {{ 'active' if view == val }}">
+          <i class="fa-solid {{ 'fa-calendar-day' if val=='daily' else ('fa-calendar-week' if val=='weekly' else 'fa-calendar') }} me-1"></i>
+          {{ lbl }}
+        </a>
+        {% endfor %}
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-5 col-md-4">
+          <label class="form-label fw-semibold">من تاريخ</label>
+          <input type="date" name="from_date" class="form-control" value="{{ from_date }}">
+        </div>
+        <div class="col-sm-5 col-md-4">
+          <label class="form-label fw-semibold">إلى تاريخ</label>
+          <input type="date" name="to_date" class="form-control" value="{{ to_date }}">
+        </div>
+        <input type="hidden" name="view" value="{{ view }}">
+        <div class="col-sm-2 col-md-4">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fa-solid fa-magnifying-glass me-1"></i>عرض
+          </button>
+        </div>
+      </div>
+
+      <!-- اختصارات سريعة -->
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <small class="text-muted fw-semibold align-self-center">اختصار:</small>
+        {% set today_str = today %}
+        {% set yr = today_str[:4] %}
+        {% set mo = today_str[5:7] %}
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="setRange('{{ today_str }}','{{ today_str }}')">اليوم</button>
+        <!-- أسبوع هذا الأسبوع: يُحسب في الـ JS -->
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="setThisWeek()">هذا الأسبوع</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="setRange('{{ yr }}-{{ mo }}-01','{{ today_str }}')">هذا الشهر</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="setRange('{{ yr }}-01-01','{{ today_str }}')">هذه السنة</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% if rows %}
+
+<!-- بطاقات الإجماليات -->
+{% set stat_cards = [
+  ('إجمالي المسجل', totals.total,   'fa-database',      '#0f3460', '#e8f0fe'),
+  ('حاضر',          totals.present, 'fa-user-check',    '#27ae60', '#e8f8f0'),
+  ('غائب',          totals.absent,  'fa-user-xmark',    '#e74c3c', '#fdecea'),
+  ('متأخر',         totals.late,    'fa-clock',         '#f39c12', '#fef9e7'),
+  ('إجازة',         totals.leave,   'fa-umbrella-beach','#3498db', '#ebf5fb'),
+] %}
+<div class="row g-3 mb-4">
+  {% for lbl, val, icon, color, bg in stat_cards %}
+  <div class="col-6 col-sm-4 col-xl">
+    <div class="card shadow-sm h-100" style="border-radius:14px;">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width:46px;height:46px;background:{{ bg }};">
+          <i class="fa-solid {{ icon }}" style="color:{{ color }};font-size:1.1rem;"></i>
+        </div>
+        <div>
+          <div class="stat-num" style="color:{{ color }}">{{ val }}</div>
+          <small class="text-muted">{{ lbl }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  <!-- نسبة الحضور -->
+  <div class="col-6 col-sm-4 col-xl">
+    <div class="card shadow-sm h-100" style="border-radius:14px;">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <div class="rate-circle flex-shrink-0"
+             style="background:{% if totals.rate >= 80 %}#e8f8f0{% elif totals.rate >= 60 %}#fef9e7{% else %}#fdecea{% endif %};
+                    color:{% if totals.rate >= 80 %}#27ae60{% elif totals.rate >= 60 %}#f39c12{% else %}#e74c3c{% endif %};">
+          {{ totals.rate }}%
+        </div>
+        <div>
+          <div class="fw-bold" style="font-size:1rem;">نسبة الحضور</div>
+          <small class="text-muted">حاضر + متأخر</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- رسومات بيانية -->
+<div class="row g-4 mb-4">
+  <!-- شريط مكدّس -->
+  <div class="col-lg-8">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-chart-bar text-primary me-2"></i>
+          توزيع الحضور
+          <span class="badge bg-light text-muted border fw-normal ms-1" style="font-size:.75rem">
+            {{ {'daily':'يومي','weekly':'أسبوعي','monthly':'شهري'}[view] }}
+          </span>
+        </h6>
+      </div>
+      <div class="card-body">
+        <canvas id="barChart" style="max-height:320px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- دائري للإجمالي -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-chart-pie text-primary me-2"></i>نسبة توزيع الكل
+        </h6>
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="pieChart" style="max-height:280px;max-width:280px;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- منحنى نسبة الحضور -->
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-chart-line text-primary me-2"></i>منحنى نسبة الحضور %
+    </h6>
+  </div>
+  <div class="card-body">
+    <canvas id="lineChart" style="max-height:260px;"></canvas>
+  </div>
+</div>
+
+<!-- جدول التفاصيل -->
+<div class="card shadow-sm" style="border-radius:14px;">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3"
+       style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-table text-primary me-2"></i>جدول التفاصيل
+    </h6>
+    <span class="badge bg-secondary">{{ rows|length }} سجل</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="tbl-wrap">
+      <table class="table table-hover table-striped mb-0">
+        <thead>
+          <tr>
+            <th>الفترة</th>
+            <th>حاضر</th>
+            <th>غائب</th>
+            <th>متأخر</th>
+            <th>إجازة</th>
+            <th>الإجمالي</th>
+            <th>نسبة الحضور</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><strong>{{ r.period }}</strong></td>
+            <td><span class="badge bg-success">{{ r.present }}</span></td>
+            <td><span class="badge bg-danger">{{ r.absent }}</span></td>
+            <td><span class="badge bg-warning text-dark">{{ r.late }}</span></td>
+            <td><span class="badge bg-info">{{ r.leave }}</span></td>
+            <td><span class="badge bg-secondary">{{ r.total }}</span></td>
+            <td style="min-width:130px;">
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:8px;">
+                  <div class="progress-bar
+                    {% if r.rate >= 80 %}bg-success{% elif r.rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                       role="progressbar"
+                       style="width:{{ r.rate }}%"></div>
+                </div>
+                <small class="fw-semibold" style="min-width:38px;">{{ r.rate }}%</small>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-dark fw-bold">
+            <td>الإجمالي</td>
+            <td>{{ totals.present }}</td>
+            <td>{{ totals.absent }}</td>
+            <td>{{ totals.late }}</td>
+            <td>{{ totals.leave }}</td>
+            <td>{{ totals.total }}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress flex-grow-1" style="height:8px;">
+                  <div class="progress-bar
+                    {% if totals.rate >= 80 %}bg-success{% elif totals.rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                       style="width:{{ totals.rate }}%"></div>
+                </div>
+                <small>{{ totals.rate }}%</small>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fa-solid fa-chart-bar fa-3x mb-3 d-block opacity-25"></i>
+  <p>لا توجد سجلات في هذا النطاق الزمني</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  /* ── بيانات من Python ── */
+  const labels   = {{ chart_labels   | tojson }};
+  const present  = {{ chart_present  | tojson }};
+  const absent   = {{ chart_absent   | tojson }};
+  const late     = {{ chart_late     | tojson }};
+  const leave    = {{ chart_leave    | tojson }};
+  const rateArr  = {{ chart_rate     | tojson }};
+
+  const RTL = true;
+  Chart.defaults.font.family = "'Cairo', sans-serif";
+
+  /* ── شريط مكدّس ── */
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label:'حاضر',  data: present, backgroundColor:'#27ae60' },
+        { label:'غائب',  data: absent,  backgroundColor:'#e74c3c' },
+        { label:'متأخر', data: late,    backgroundColor:'#f39c12' },
+        { label:'إجازة', data: leave,   backgroundColor:'#3498db' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+      }
+    }
+  });
+
+  /* ── دائري ── */
+  const totals = {
+    present: present.reduce((a,b) => a+b, 0),
+    absent:  absent.reduce((a,b)  => a+b, 0),
+    late:    late.reduce((a,b)    => a+b, 0),
+    leave:   leave.reduce((a,b)   => a+b, 0),
+  };
+  new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['حاضر','غائب','متأخر','إجازة'],
+      datasets: [{
+        data: [totals.present, totals.absent, totals.late, totals.leave],
+        backgroundColor: ['#27ae60','#e74c3c','#f39c12','#3498db'],
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+              const pct   = total ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+              return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  /* ── منحنى نسبة الحضور ── */
+  new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'نسبة الحضور %',
+        data: rateArr,
+        borderColor: '#0f3460',
+        backgroundColor: 'rgba(15,52,96,.1)',
+        tension: .35, fill: true, pointRadius: 4,
+        pointBackgroundColor: '#0f3460',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
+      }
+    }
+  });
+
+  /* ── اختصارات التاريخ ── */
+  function setRange(from, to) {
+    document.querySelector('[name=from_date]').value = from;
+    document.querySelector('[name=to_date]').value   = to;
+    document.getElementById('filterForm').submit();
+  }
+
+  function setThisWeek() {
+    const now  = new Date();
+    const day  = now.getDay();                    // 0=Sun
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);  // Monday
+    const mon  = new Date(now.setDate(diff));
+    const sun  = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const fmt  = d => d.toISOString().split('T')[0];
+    setRange(fmt(mon), fmt(sun));
+  }
+</script>
+{% endblock %}

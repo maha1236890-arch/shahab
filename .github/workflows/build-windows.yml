@@ -1,0 +1,64 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:     [ 'v*' ]
+  workflow_dispatch:   # تشغيل يدوي من واجهة GitHub
+
+jobs:
+  build:
+    runs-on: windows-latest   # ← جهاز Windows مجاني من GitHub
+
+    steps:
+      # ── 1. تحميل الكود ──────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. تثبيت Python ─────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      # ── 3. تثبيت المكتبات ───────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-hooks-contrib
+
+      # ── 4. بناء التطبيق بـ PyInstaller ─────────────────────────────
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller attendance_windows.spec --noconfirm
+
+      # ── 5. إنشاء مثبّت بـ Inno Setup ───────────────────────────────
+      - name: Build Installer (Inno Setup)
+        run: |
+          choco install innosetup --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" attendance_setup.iss
+        shell: pwsh
+
+      # ── 6. رفع الناتج كـ Artifact قابل للتحميل ─────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shahab-windows-installer
+          path: Output\attendance_setup_v*.exe
+          retention-days: 30
+
+      # ── 7. رفع تلقائي عند وجود Tag (إصدار جديد) ────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Output\attendance_setup_v*.exe
+          name: "شهاب ${{ github.ref_name }}"
+          body: |
+            ## شهاب — نظام إدارة الحضور والغياب
+            ### التثبيت
+            1. حمّل ملف `attendance_setup_v*.exe`
+            2. شغّله وسيتثبت تلقائياً
+            3. ابحث عن **شهاب** في قائمة Start

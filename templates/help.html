@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block title %}دليل المستخدم{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <h4 class="mb-0"><i class="fa-solid fa-book-open text-primary me-2"></i>دليل المستخدم</h4>
+</div>
+
+<div class="row g-4">
+
+  <!-- فهرس المحتويات -->
+  <div class="col-lg-3 d-none d-lg-block">
+    <div class="card border-0 shadow-sm sticky-top" style="top:80px;">
+      <div class="card-body py-3">
+        <h6 class="fw-bold text-muted mb-3 text-uppercase" style="font-size:.75rem; letter-spacing:.05em;">
+          <i class="fa-solid fa-list me-1"></i>الأقسام
+        </h6>
+        <nav class="d-flex flex-column gap-1">
+          <a href="#sec-start"   class="text-decoration-none text-dark small py-1">1. البدء السريع</a>
+          <a href="#sec-emp"     class="text-decoration-none text-dark small py-1">2. إدارة الموظفين</a>
+          <a href="#sec-attend"  class="text-decoration-none text-dark small py-1">3. تسجيل الحضور</a>
+          <a href="#sec-reports" class="text-decoration-none text-dark small py-1">4. التقارير</a>
+          <a href="#sec-branches"class="text-decoration-none text-dark small py-1">5. الفروع</a>
+          <a href="#sec-settings"class="text-decoration-none text-dark small py-1">6. الإعدادات</a>
+          <a href="#sec-users"   class="text-decoration-none text-dark small py-1">7. المستخدمون</a>
+          <a href="#sec-backup"  class="text-decoration-none text-dark small py-1">8. النسخ الاحتياطي</a>
+          <a href="#sec-license" class="text-decoration-none text-dark small py-1">9. الترخيص</a>
+          <a href="#sec-faq"     class="text-decoration-none text-dark small py-1">10. أسئلة شائعة</a>
+        </nav>
+      </div>
+    </div>
+  </div>
+
+  <!-- المحتوى -->
+  <div class="col-lg-9">
+
+    <!-- 1. البدء السريع -->
+    <div id="sec-start" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fa-solid fa-rocket me-2"></i>1. البدء السريع</h5>
+      </div>
+      <div class="card-body">
+        <ol class="mb-0">
+          <li class="mb-2">
+            <strong>تشغيل البرنامج:</strong> انقر نقراً مزدوجاً على أيقونة التطبيق، أو شغّله من قائمة التطبيقات.
+          </li>
+          <li class="mb-2">
+            <strong>تسجيل الدخول:</strong>
+            <ul class="mt-1">
+              <li>اسم المستخدم الافتراضي: <code>admin</code></li>
+              <li>كلمة المرور الافتراضية: <code>admin123</code></li>
+              <li><span class="text-danger fw-bold">يُنصح بتغيير كلمة المرور فور أول تسجيل دخول.</span></li>
+            </ul>
+          </li>
+          <li class="mb-2">
+            <strong>أول إعداد:</strong> انتقل إلى <strong>الإعدادات</strong> لتحديد اسم المؤسسة وأيام الدوام الأسبوعي.
+          </li>
+          <li>
+            <strong>أضف الموظفين:</strong> من قائمة <strong>الموظفون &rarr; إضافة موظف</strong>.
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 2. إدارة الموظفين -->
+    <div id="sec-emp" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fa-solid fa-users me-2"></i>2. إدارة الموظفين</h5>
+      </div>
+      <div class="card-body">
+        <h6 class="fw-bold">إضافة موظف</h6>
+        <p class="text-muted small">انتقل إلى <strong>الموظفون &rarr; إضافة موظف</strong> وأدخل البيانات المطلوبة. الحقول الإلزامية: <strong>كود الموظف</strong> و<strong>الاسم الكامل</strong>.</p>
+
+        <h6 class="fw-bold mt-3">حدود الغياب والإجازة</h6>
+        <ul class="text-muted small mb-0">
+          <li><strong>أيام الغياب المسموحة:</strong> عدد أيام الغياب المسموح بها شهرياً قبل إشعار التنبيه.</li>
+          <li><strong>أيام الإجازة:</strong> حد الإجازات المدفوعة.</li>
+          <li><strong>أيام الإجازة المرضية:</strong> حد الإجازات المرضية.</li>
+          <li><strong>أيام العمل الشهرية:</strong> إن تجاوز الموظف هذا الحد يظهر تنبيه.</li>
+          <li><strong>الرصيد السنوي:</strong> رصيد الإجازة السنوية (افتراضي 21 يوم).</li>
+        </ul>
+
+        <h6 class="fw-bold mt-3">استيراد من Excel</h6>
+        <p class="text-muted small mb-0">يمكن استيراد قائمة الموظفين من ملف Excel عبر <strong>الموظفون &rarr; استيراد Excel</strong>. يجب أن تحتوي الأعمدة على: كود الموظف، الاسم الكامل، القسم (اختياري).</p>
+      </div>
+    </div>
+
+    <!-- 3. تسجيل الحضور -->
+    <div id="sec-attend" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fa-solid fa-calendar-check me-2"></i>3. تسجيل الحضور</h5>
+      </div>
+      <div class="card-body">
+        <h6 class="fw-bold">تسجيل يومي</h6>
+        <p class="text-muted small">من قائمة <strong>الحضور</strong> اختر التاريخ ثم انقر على حالة كل موظف:</p>
+        <div class="row g-2 mb-3">
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success">حاضر</span>
+              <small class="text-muted">الموظف حضر للعمل</small>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-danger">غائب</span>
+              <small class="text-muted">غياب بدون إذن</small>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-warning text-dark">إجازة</span>
+              <small class="text-muted">إجازة رسمية مدفوعة</small>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-info text-dark">مرضي</span>
+              <small class="text-muted">إجازة مرضية</small>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-secondary">إجازة رسمية</span>
+              <small class="text-muted">يوم عطلة رسمية</small>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-dark">أونلاين</span>
+              <small class="text-muted">عمل عن بُعد</small>
+            </div>
+          </div>
+        </div>
+
+        <h6 class="fw-bold">لوحة الحضور السريعة</h6>
+        <p class="text-muted small mb-0">من لوحة التحكم، انقر <strong>تسجيل سريع</strong> لتسجيل حضور/غياب الجميع دفعة واحدة.</p>
+      </div>
+    </div>
+
+    <!-- 4. التقارير -->
+    <div id="sec-reports" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fa-solid fa-chart-bar me-2"></i>4. التقارير</h5>
+      </div>
+      <div class="card-body">
+        <h6 class="fw-bold">تقرير الموظف الفردي</h6>
+        <p class="text-muted small">من <strong>الموظفون</strong>، انقر أيقونة الرسم البياني بجانب الموظف لعرض تقريره الشامل بملخص 12 شهراً. يمكن <strong>تحميل PDF</strong> أو <strong>طباعة</strong> التقرير مباشرة.</p>
+
+        <h6 class="fw-bold mt-3">تقارير الحضور</h6>
+        <p class="text-muted small">من قائمة <strong>التقارير</strong>، يمكن الفلترة بـ:</p>
+        <ul class="text-muted small mb-0">
+          <li>نطاق تاريخ محدد</li>
+          <li>موظف بعينه</li>
+          <li>قسم محدد</li>
+          <li>تصدير النتائج إلى <strong>Excel</strong> أو <strong>PDF</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 5. الفروع -->
+    <div id="sec-branches" class="card border-0 shadow-sm mb-4">
+      <div class="card-header text-white" style="background:#6f42c1;">
+        <h5 class="mb-0"><i class="fa-solid fa-code-branch me-2"></i>5. الفروع</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">إن كانت مؤسستك تملك أكثر من موقع أو فرع، يمكنك إدارة الفروع من قائمة <strong>الفروع</strong> (للمدير فقط).</p>
+        <ol class="text-muted small mb-0">
+          <li class="mb-1">أضف الفروع من <strong>الفروع &rarr; إضافة فرع</strong> (اسم، عنوان، مدير).</li>
+          <li class="mb-1">عند إضافة/تعديل موظف، اختر الفرع من القائمة المنسدلة.</li>
+          <li>يظهر الفرع في قائمة الموظفين وفي التقارير.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 6. الإعدادات -->
+    <div id="sec-settings" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0"><i class="fa-solid fa-gear me-2"></i>6. الإعدادات</h5>
+      </div>
+      <div class="card-body">
+        <ul class="text-muted small mb-0">
+          <li class="mb-1"><strong>اسم المؤسسة:</strong> يظهر في التقارير والمستندات المطبوعة.</li>
+          <li class="mb-1"><strong>أيام الدوام الأسبوعية:</strong> حدد أيام العمل (مثلاً: الأحد - الخميس).</li>
+          <li class="mb-1"><strong>العطل الرسمية:</strong> أضف العطل من قائمة <strong>العطل الرسمية</strong> لتُحسب تلقائياً.</li>
+          <li><strong>وقت الدوام:</strong> وقت بدء وانتهاء الدوام الرسمي.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 7. المستخدمون -->
+    <div id="sec-users" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white">
+        <h5 class="mb-0"><i class="fa-solid fa-user-shield me-2"></i>7. المستخدمون</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">من <strong>الإعدادات &rarr; المستخدمون</strong> يمكن للمدير:</p>
+        <ul class="text-muted small mb-0">
+          <li class="mb-1">إضافة مستخدمين جدد (مدير / مستخدم عادي).</li>
+          <li class="mb-1">إيقاف حساب مستخدم (لا يستطيع الدخول).</li>
+          <li>تغيير كلمة المرور من <strong>الإعدادات &rarr; تغيير كلمة المرور</strong>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 8. النسخ الاحتياطي -->
+    <div id="sec-backup" class="card border-0 shadow-sm mb-4">
+      <div class="card-header text-white" style="background:#20c997;">
+        <h5 class="mb-0"><i class="fa-solid fa-database me-2"></i>8. النسخ الاحتياطي</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">من صفحة <strong>عن البرنامج</strong>، انقر <strong>نسخ احتياطي</strong> لتحميل ملف قاعدة البيانات (<code>.db</code>). يُنصح بالنسخ أسبوعياً.</p>
+        <div class="alert alert-warning py-2 mb-0" style="font-size:.85rem;">
+          <i class="fa-solid fa-triangle-exclamation me-1"></i>
+          ملف قاعدة البيانات يحتوي على <strong>جميع</strong> البيانات. احفظه في مكان آمن.
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. الترخيص -->
+    <div id="sec-license" class="card border-0 shadow-sm mb-4">
+      <div class="card-header text-white" style="background:#fd7e14;">
+        <h5 class="mb-0"><i class="fa-solid fa-shield-halved me-2"></i>9. الترخيص</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">البرنامج يحتاج ترخيصاً للعمل. للتفعيل:</p>
+        <ol class="text-muted small mb-0">
+          <li class="mb-1">احصل على مفتاح الترخيص من المورّد.</li>
+          <li class="mb-1">انتقل إلى <strong>الترخيص</strong> من القائمة الجانبية.</li>
+          <li class="mb-1">أدخل المفتاح وانقر <strong>تفعيل</strong>.</li>
+          <li>في حالة انتهاء الترخيص، تظهر رسالة تنبيه عند تشغيل البرنامج.</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 10. أسئلة شائعة -->
+    <div id="sec-faq" class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-light text-dark border-bottom">
+        <h5 class="mb-0"><i class="fa-solid fa-circle-question text-primary me-2"></i>10. أسئلة شائعة</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="accordion accordion-flush" id="faqAccordion">
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                نسيت كلمة مرور المدير، كيف أستعيدها؟
+              </button>
+            </h2>
+            <div id="faq1" class="accordion-collapse collapse">
+              <div class="accordion-body text-muted small">
+                تواصل مع مورّد البرنامج لإعادة تعيين كلمة المرور.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                هل البرنامج يعمل بدون إنترنت؟
+              </button>
+            </h2>
+            <div id="faq2" class="accordion-collapse collapse">
+              <div class="accordion-body text-muted small">
+                نعم، البرنامج يعمل بالكامل على الجهاز المحلي ولا يحتاج إنترنت.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                لماذا لا تظهر التقارير عند الطباعة؟
+              </button>
+            </h2>
+            <div id="faq3" class="accordion-collapse collapse">
+              <div class="accordion-body text-muted small">
+                تأكد من استخدام <strong>طباعة</strong> من داخل البرنامج (أيقونة الطابعة). تجنّب Ctrl+P من المتصفح المُدمج مباشرة.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                كيف أحدّث البرنامج؟
+              </button>
+            </h2>
+            <div id="faq4" class="accordion-collapse collapse">
+              <div class="accordion-body text-muted small">
+                انسخ قاعدة البيانات احتياطياً أولاً، ثم نفّذ ملف التثبيت الجديد الذي يوفره المورّد.
+              </div>
+            </div>
+          </div>
+
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+                كيف أُلغي تعيين موظف من فرع؟
+              </button>
+            </h2>
+            <div id="faq5" class="accordion-collapse collapse">
+              <div class="accordion-body text-muted small">
+                عدّل بيانات الموظف واختر <strong>"-- بدون فرع --"</strong> من قائمة الفرع.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /col -->
+</div><!-- /row -->
+{% endblock %}

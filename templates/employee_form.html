@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}{{ 'تعديل موظف' if emp else 'إضافة موظف' }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-3">
+  <a href="{{ url_for('employees') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fa-solid fa-arrow-right"></i>
+  </a>
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid {{ 'fa-user-pen' if emp else 'fa-user-plus' }} text-primary me-2"></i>
+    {{ 'تعديل بيانات الموظف' if emp else 'إضافة موظف جديد' }}
+  </h5>
+</div>
+
+<div class="card shadow-sm" style="border-radius:14px;max-width:700px;">
+  <div class="card-body p-4">
+    <form method="post">
+      <div class="row g-3">
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">كود الموظف <span class="text-danger">*</span></label>
+          <input type="text" name="employee_code" class="form-control"
+                 value="{{ emp.employee_code if emp else '' }}" required>
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">الاسم الكامل <span class="text-danger">*</span></label>
+          <input type="text" name="full_name" class="form-control"
+                 value="{{ emp.full_name if emp else '' }}" required>
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">الجهة التابع لها</label>
+          <input type="text" name="organization" class="form-control"
+                 value="{{ emp.organization or '' if emp else '' }}"
+                 placeholder="مثال: وزارة الصحة">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">الفرع</label>
+          <select name="branch" class="form-select">
+            <option value="">-- بدون فرع --</option>
+            {% for br in branches %}
+            <option value="{{ br.name }}"
+              {{ 'selected' if emp and emp.branch == br.name }}>{{ br.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">القسم</label>
+          <input type="text" name="department" class="form-control"
+                 value="{{ emp.department or '' if emp else '' }}"
+                 placeholder="مثال: الموارد البشرية">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">المنصب الوظيفي</label>
+          <input type="text" name="position" class="form-control"
+                 value="{{ emp.position or '' if emp else '' }}">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">رقم الهاتف</label>
+          <input type="tel" name="phone" class="form-control"
+                 value="{{ emp.phone or '' if emp else '' }}">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">البريد الإلكتروني</label>
+          <input type="email" name="email" class="form-control"
+                 value="{{ emp.email or '' if emp else '' }}">
+        </div>
+
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">تاريخ التعيين</label>
+          <input type="date" name="hire_date" class="form-control"
+                 value="{{ emp.hire_date if emp else today }}">
+        </div>
+
+        {% if emp %}
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold">الحالة</label>
+          <select name="status" class="form-select">
+            <option value="active"   {{ 'selected' if emp.status == 'active'   }}>نشط</option>
+            <option value="inactive" {{ 'selected' if emp.status == 'inactive' }}>غير نشط</option>
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-12">
+          <label class="form-label fw-semibold">
+            <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>
+            الحد الأقصى للغياب (أيام/شهر) — يظهر تنبيه عند التجاوز — اترك 0 لعدم التنبيه
+          </label>
+        </div>
+        <div class="col-sm-3 col-6">
+          <label class="form-label small text-muted">غياب بدون سبب</label>
+          <input type="number" name="max_absent_days" class="form-control"
+                 min="0" max="31"
+                 value="{{ emp.max_absent_days if emp else 0 }}">
+        </div>
+        <div class="col-sm-3 col-6">
+          <label class="form-label small text-muted">إجازة</label>
+          <input type="number" name="max_vacation_days" class="form-control"
+                 min="0" max="31"
+                 value="{{ emp.max_vacation_days if emp else 0 }}">
+        </div>
+        <div class="col-sm-3 col-6">
+          <label class="form-label small text-muted">مرض</label>
+          <input type="number" name="max_sick_days" class="form-control"
+                 min="0" max="31"
+                 value="{{ emp.max_sick_days if emp else 0 }}">
+        </div>
+        <div class="col-sm-3 col-6">
+          <label class="form-label small text-muted">عمل خارجي</label>
+          <input type="number" name="max_work_days" class="form-control"
+                 min="0" max="31"
+                 value="{{ emp.max_work_days if emp else 0 }}">
+        </div>
+
+        <!-- رصيد الإجازة السنوي -->
+        <div class="col-12 mt-2">
+          <label class="form-label fw-semibold">
+            <i class="fa-solid fa-umbrella-beach text-info me-1"></i>
+            رصيد الإجازة السنوي (الأيام الممنوحة في السنة)
+          </label>
+        </div>
+        <div class="col-sm-4 col-6">
+          <label class="form-label small text-muted">أيام الإجازة السنوية</label>
+          <input type="number" name="annual_leave_days" class="form-control"
+                 min="0" max="365"
+                 value="{{ emp.annual_leave_days if emp else 21 }}">
+          <div class="form-text">الرصيد المتبقي يظهر في تقرير الموظف</div>
+        </div>
+
+      </div><!-- end row -->
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary px-4">
+          <i class="fa-solid fa-floppy-disk me-1"></i>حفظ
+        </button>
+        <a href="{{ url_for('employees') }}" class="btn btn-outline-secondary px-4">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

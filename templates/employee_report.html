@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}تقرير الموظف – {{ emp.full_name }}{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة -->
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="fw-bold mb-0">
+      <i class="fa-solid fa-user-circle text-primary me-2"></i>{{ emp.full_name }}
+    </h5>
+    <small class="text-muted">{{ emp.employee_code }} | {{ emp.department or '' }} | {{ emp.position or '' }}</small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('employees') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="fa-solid fa-arrow-right me-1"></i>رجوع
+    </a>
+    <button onclick="window.print()" class="btn btn-sm btn-outline-primary">
+      <i class="fa-solid fa-print me-1"></i>طباعة
+    </button>
+    <a href="{{ url_for('employee_report_pdf', emp_id=emp.id, year=year, month=month) }}"
+       class="btn btn-sm btn-danger">
+      <i class="fa-solid fa-file-pdf me-1"></i>تحميل PDF
+    </a>
+  </div>
+</div>
+
+<!-- رصيد الإجازات -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card shadow-sm text-center py-3" style="border-radius:14px;">
+      <div class="stat-num text-primary">{{ emp.annual_leave_days or 21 }}</div>
+      <small class="text-muted">رصيد الإجازة السنوي</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card shadow-sm text-center py-3" style="border-radius:14px;">
+      <div class="stat-num text-warning">{{ emp.vacation_year }}</div>
+      <small class="text-muted">مستهلك هذه السنة</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card shadow-sm text-center py-3"
+         style="border-radius:14px;{{ 'background:#fff5f5' if emp.leave_balance <= 0 else '' }}">
+      <div class="stat-num {{ 'text-danger' if emp.leave_balance <= 0 else 'text-success' }}">
+        {{ emp.leave_balance }}
+      </div>
+      <small class="text-muted">رصيد متبقٍّ</small>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card shadow-sm text-center py-3" style="border-radius:14px;">
+      <div class="stat-num text-info">{{ emp.hire_date or '—' }}</div>
+      <small class="text-muted">تاريخ التعيين</small>
+    </div>
+  </div>
+</div>
+
+<!-- منتقي السنة والشهر -->
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-body py-2">
+    <form class="row g-2 align-items-end" method="get">
+      <div class="col-auto">
+        <label class="form-label small mb-1">السنة</label>
+        <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for y in years %}
+          <option value="{{ y }}" {{ 'selected' if y == year }}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <label class="form-label small mb-1">الشهر</label>
+        <select name="month" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for m in range(1,13) %}
+          <option value="{{ m }}" {{ 'selected' if m == month }}>{{ month_names[m] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ملخص السنة (12 شهر) -->
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-calendar-days text-primary me-2"></i>ملخص سنة {{ year }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="tbl-wrap">
+      <table class="table table-hover mb-0 text-center">
+        <thead>
+          <tr>
+            <th class="text-start">الشهر</th>
+            <th class="text-success">حضور</th>
+            <th class="text-danger">غياب</th>
+            <th class="text-info">إجازة</th>
+            <th class="text-warning">مرض</th>
+            <th class="text-secondary d-none d-md-table-cell">عمل خارجي</th>
+            <th>إجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in year_stats %}
+          <tr class="{{ 'table-primary fw-bold' if s.month == month else '' }}">
+            <td class="text-start">{{ month_names[s.month] }}</td>
+            <td>
+              {% if s.present_days > 0 %}
+              <span class="badge bg-success">{{ s.present_days }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if s.absent_days > 0 %}
+              <span class="badge bg-danger">{{ s.absent_days }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if s.vacation_days > 0 %}
+              <span class="badge bg-info text-dark">{{ s.vacation_days }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if s.sick_days > 0 %}
+              <span class="badge bg-warning text-dark">{{ s.sick_days }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="d-none d-md-table-cell">
+              {% if s.work_days > 0 %}
+              <span class="badge bg-secondary">{{ s.work_days }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ s.total_days }}</span></td>
+          </tr>
+          {% endfor %}
+          <!-- إجماليات -->
+          {% set total_present  = year_stats | sum(attribute='present_days') %}
+          {% set total_absent   = year_stats | sum(attribute='absent_days') %}
+          {% set total_vacation = year_stats | sum(attribute='vacation_days') %}
+          {% set total_sick     = year_stats | sum(attribute='sick_days') %}
+          {% set total_work     = year_stats | sum(attribute='work_days') %}
+          {% set total_all      = year_stats | sum(attribute='total_days') %}
+          <tr class="table-dark fw-bold">
+            <td class="text-start">الإجمالي</td>
+            <td>{{ total_present }}</td>
+            <td>{{ total_absent }}</td>
+            <td>{{ total_vacation }}</td>
+            <td>{{ total_sick }}</td>
+            <td class="d-none d-md-table-cell">{{ total_work }}</td>
+            <td>{{ total_all }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- سجلات الشهر المختار -->
+<div class="card shadow-sm" style="border-radius:14px;">
+  <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-list text-primary me-2"></i>
+      سجلات {{ month_names[month] }} {{ year }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    {% if records %}
+    <div class="tbl-wrap">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>الحالة</th>
+            <th class="d-none d-sm-table-cell">دخول</th>
+            <th class="d-none d-sm-table-cell">خروج</th>
+            <th class="d-none d-md-table-cell">نوع الغياب</th>
+            <th class="d-none d-lg-table-cell">ملاحظات</th>
+            <th class="d-none d-lg-table-cell">سُجّل بواسطة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in records %}
+          {% set status_map = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة'} %}
+          {% set status_badge = {'present':'bg-success','absent':'bg-danger','late':'bg-warning text-dark','leave':'bg-info text-dark'} %}
+          {% set exit_map = {'vacation':'إجازة','sick':'مرض','work':'عمل خارجي'} %}
+          <tr>
+            <td><strong>{{ r.date }}</strong></td>
+            <td>
+              <span class="badge {{ status_badge.get(r.status, 'bg-secondary') }}">
+                {{ status_map.get(r.status, r.status) }}
+              </span>
+            </td>
+            <td class="d-none d-sm-table-cell">{{ r.check_in | time12 if r.check_in else '—' }}</td>
+            <td class="d-none d-sm-table-cell">{{ r.check_out | time12 if r.check_out else '—' }}</td>
+            <td class="d-none d-md-table-cell">
+              {{ exit_map.get(r.exit_type, r.exit_type or '—') }}
+            </td>
+            <td class="d-none d-lg-table-cell text-muted" style="font-size:.82rem">
+              {{ r.notes or '—' }}
+            </td>
+            <td class="d-none d-lg-table-cell text-muted" style="font-size:.82rem">
+              {{ r.recorded_by_name or '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+      <i class="fa-solid fa-inbox fa-2x mb-2 d-block opacity-25"></i>
+      لا توجد سجلات لهذا الشهر
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

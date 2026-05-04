@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}لوحة التحكم{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-chart-pie text-primary me-2"></i>لوحة التحكم
+  </h5>
+  <span class="badge bg-primary px-3 py-2" style="font-size:.85rem">
+    <i class="fa-regular fa-calendar me-1"></i>{{ today }}
+  </span>
+</div>
+
+<!-- إحصائيات اليوم -->
+{% set cards = [
+  ('إجمالي الموظفين', stats.get('total',   0), 'fa-users',          '#0f3460', '#e8f0fe'),
+  ('حاضر',            stats.get('present', 0), 'fa-user-check',     '#27ae60', '#e8f8f0'),
+  ('غائب',            stats.get('absent',  0), 'fa-user-xmark',     '#e74c3c', '#fdecea'),
+  ('متأخر',           stats.get('late',    0), 'fa-clock',          '#f39c12', '#fef9e7'),
+  ('إجازة',           stats.get('leave',   0), 'fa-umbrella-beach', '#3498db', '#ebf5fb'),
+] %}
+<div class="row g-3 mb-4">
+  {% for label, val, icon, color, bg in cards %}
+  <div class="col-6 col-sm-4 col-xl">
+    <div class="card shadow-sm h-100" style="border-radius:14px;">
+      <div class="card-body d-flex align-items-center gap-3 py-3">
+        <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width:46px;height:46px;background:{{ bg }};">
+          <i class="fa-solid {{ icon }}" style="color:{{ color }};font-size:1.1rem;"></i>
+        </div>
+        <div>
+          <div class="stat-num" style="color:{{ color }}">{{ val }}</div>
+          <small class="text-muted">{{ label }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ⚠️ تنبيهات الغياب الزائد -->
+{% if alerts %}
+<div class="alert alert-danger border-0 shadow-sm mb-4" style="border-radius:14px;">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="fa-solid fa-triangle-exclamation fa-lg"></i>
+    <strong>تنبيه: موظفون تجاوزوا حد الغياب المسموح به هذا الشهر ({{ current_month }})</strong>
+  </div>
+  <div class="row g-2 mt-1">
+    {% for a in alerts %}
+    <div class="col-sm-6 col-lg-4">
+      <div class="d-flex align-items-center gap-2 bg-white rounded-3 px-3 py-2 shadow-sm">
+        <i class="fa-solid fa-user-xmark text-danger"></i>
+        <div>
+          <div class="fw-semibold">{{ a.full_name }}</div>
+          {% for label, count, limit in a.reasons %}
+          <small class="text-muted d-block">
+            {{ label }}: <span class="text-danger fw-bold">{{ count }}</span> / الحد {{ limit }} يوم
+          </small>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- جدول إحصائيات الموظفين لهذا الشهر -->
+{% if emp_stats %}
+<div class="card shadow-sm mb-4" style="border-radius:14px;">
+  <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-calendar-days text-primary me-2"></i>
+      حضور وغياب الموظفين — {{ current_month }}
+    </h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="tbl-wrap">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="d-none d-md-table-cell">القسم</th>
+            <th class="text-center text-success">حضور</th>
+            <th class="text-center text-danger">غياب</th>
+            <th class="text-center text-info d-none d-sm-table-cell">إجازة</th>
+            <th class="text-center text-warning d-none d-sm-table-cell">مرض</th>
+            <th class="text-center text-secondary d-none d-lg-table-cell">عمل</th>
+            <th class="text-center">إجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in emp_stats %}
+          {% set over = (e.max_absent_days   > 0 and e.absent_days   > e.max_absent_days)
+                     or (e.max_vacation_days > 0 and e.vacation_days > e.max_vacation_days)
+                     or (e.max_sick_days     > 0 and e.sick_days     > e.max_sick_days)
+                     or (e.max_work_days     > 0 and e.work_days     > e.max_work_days) %}
+          <tr class="{{ 'table-danger' if over else '' }}">
+            <td>
+              <strong>{{ e.full_name }}</strong>
+              {% if over %}
+              <i class="fa-solid fa-triangle-exclamation text-danger ms-1" title="تجاوز الحد"></i>
+              {% endif %}
+            </td>
+            <td class="d-none d-md-table-cell">{{ e.department or '—' }}</td>
+            <td class="text-center">
+              <span class="badge bg-success">{{ e.present_days }}</span>
+            </td>
+            <td class="text-center">
+              <span class="badge {{ 'bg-danger' if e.max_absent_days > 0 and e.absent_days > e.max_absent_days else 'bg-secondary' }}">
+                {{ e.absent_days }}
+              </span>
+            </td>
+            <td class="text-center d-none d-sm-table-cell">
+              <span class="badge {{ 'bg-danger' if e.max_vacation_days > 0 and e.vacation_days > e.max_vacation_days else 'bg-info text-dark' }}">
+                {{ e.vacation_days }}
+              </span>
+            </td>
+            <td class="text-center d-none d-sm-table-cell">
+              <span class="badge {{ 'bg-danger' if e.max_sick_days > 0 and e.sick_days > e.max_sick_days else 'bg-warning text-dark' }}">
+                {{ e.sick_days }}
+              </span>
+            </td>
+            <td class="text-center d-none d-lg-table-cell">
+              <span class="badge bg-secondary">{{ e.work_days }}</span>
+            </td>
+            <td class="text-center text-muted">{{ e.total_days }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- سجل اليوم -->
+<div class="card shadow-sm" style="border-radius:14px;">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3"
+       style="border-radius:14px 14px 0 0;">
+    <h6 class="mb-0 fw-bold">
+      <i class="fa-solid fa-list-check text-primary me-2"></i>سجل حضور اليوم
+    </h6>
+    <a href="{{ url_for('attendance') }}" class="btn btn-sm btn-primary">
+      <i class="fa-solid fa-plus me-1"></i>تسجيل الحضور
+    </a>
+  </div>
+
+  {% if recent %}
+  <div class="card-body p-0">
+    <div class="tbl-wrap">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="d-none d-md-table-cell">الجهة</th>
+            <th class="d-none d-sm-table-cell">القسم</th>
+            <th>الحالة</th>
+            <th class="d-none d-sm-table-cell">الدخول</th>
+            <th class="d-none d-sm-table-cell">الخروج</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set st_label = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة'} %}
+          {% set st_color = {'present':'success','absent':'danger','late':'warning','leave':'info'} %}
+          {% for r in recent %}
+          <tr>
+            <td>
+              <strong>{{ r.full_name }}</strong>
+              <div class="text-muted" style="font-size:.76rem">{{ r.employee_code }}</div>
+            </td>
+            <td class="d-none d-md-table-cell">{{ r.get('organization','') or '—' }}</td>
+            <td class="d-none d-sm-table-cell">{{ r.get('department','') or '—' }}</td>
+            <td>
+              <span class="badge bg-{{ st_color.get(r.status,'secondary') }}">
+                {{ st_label.get(r.status, r.status) }}
+              </span>
+            </td>
+            <td class="d-none d-sm-table-cell">{{ r.check_in  | time12 }}</td>
+            <td class="d-none d-sm-table-cell">{{ r.check_out | time12 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-body text-center py-5 text-muted">
+    <i class="fa-solid fa-inbox fa-3x mb-3 d-block opacity-25"></i>
+    <p class="mb-3">لم يتم تسجيل حضور اليوم بعد</p>
+    <a href="{{ url_for('attendance') }}" class="btn btn-primary">ابدأ التسجيل</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

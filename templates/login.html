@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block bare_content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center"
+     style="background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);">
+  <div class="card shadow-lg" style="width:100%;max-width:410px;border-radius:18px;">
+    <div class="card-body p-4 p-sm-5">
+
+      <div class="text-center mb-4">
+        <div class="d-inline-flex align-items-center justify-content-center rounded-3 mb-3"
+             style="width:66px;height:66px;background:#e94560;">
+          <i class="fa-solid fa-fingerprint fa-2x text-white"></i>
+        </div>
+        <h5 class="fw-bold mb-1">شهاب</h5>
+        <p class="text-muted small mb-0">سجّل دخولك للمتابعة</p>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} py-2 small">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('login') }}" autocomplete="on">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">اسم المستخدم</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0">
+              <i class="fa-solid fa-user text-muted"></i>
+            </span>
+            <input type="text" name="username" class="form-control border-start-0"
+                   placeholder="admin" required autofocus autocomplete="username">
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">كلمة المرور</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light border-end-0">
+              <i class="fa-solid fa-lock text-muted"></i>
+            </span>
+            <input type="password" id="pwf" name="password"
+                   class="form-control border-start-0 border-end-0"
+                   required autocomplete="current-password">
+            <button type="button" class="btn btn-outline-secondary" onclick="togglePw()">
+              <i class="fa-solid fa-eye" id="eyeI"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">
+          <i class="fa-solid fa-right-to-bracket me-2"></i>دخول
+        </button>
+      </form>
+
+      <p class="text-center text-muted small mt-3 mb-0">
+        الحساب الافتراضي: <code>admin</code> / <code>admin123</code>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePw() {
+  const f = document.getElementById('pwf');
+  const e = document.getElementById('eyeI');
+  if (f.type === 'password') { f.type = 'text'; e.className = 'fa-solid fa-eye-slash'; }
+  else                       { f.type = 'password'; e.className = 'fa-solid fa-eye'; }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}استيراد الموظفين{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <h5 class="fw-bold mb-0">
+    <i class="fa-solid fa-file-excel text-success me-2"></i>استيراد الموظفين من Excel
+  </h5>
+</div>
+
+<div class="row g-4">
+  <!-- نموذج الرفع -->
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-upload text-primary me-2"></i>رفع ملف Excel
+        </h6>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">اختر ملف Excel (.xlsx)</label>
+            <input type="file" name="excel_file" class="form-control"
+                   accept=".xlsx,.xls" required>
+            <div class="form-text">الحجم الأقصى: 5 ميجابايت</div>
+          </div>
+          <button type="submit" class="btn btn-success w-100">
+            <i class="fa-solid fa-file-import me-2"></i>استيراد الآن
+          </button>
+        </form>
+
+        <hr>
+        <a href="{{ url_for('download_import_template') }}" class="btn btn-outline-primary w-100">
+          <i class="fa-solid fa-download me-2"></i>تحميل نموذج Excel فارغ
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- تعليمات -->
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white py-3" style="border-radius:14px 14px 0 0;">
+        <h6 class="mb-0 fw-bold">
+          <i class="fa-solid fa-circle-info text-info me-2"></i>تعليمات
+        </h6>
+      </div>
+      <div class="card-body">
+        <ol class="mb-3" style="font-size:.9rem;line-height:2;">
+          <li>حمّل النموذج الفارغ أعلاه</li>
+          <li>افتحه في Excel أو LibreOffice</li>
+          <li>أضف بيانات الموظفين (الصف الأول هو العناوين)</li>
+          <li>احفظ الملف ثم ارفعه هنا</li>
+        </ol>
+
+        <h6 class="fw-bold mt-3 mb-2">أعمدة الملف:</h6>
+        <table class="table table-sm table-bordered" style="font-size:.83rem;">
+          <thead class="table-light">
+            <tr><th>العمود</th><th>الوصف</th><th>مطلوب</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>employee_code</td><td>كود الموظف (فريد)</td><td><span class="badge bg-danger">نعم</span></td></tr>
+            <tr><td>full_name</td><td>الاسم الكامل</td><td><span class="badge bg-danger">نعم</span></td></tr>
+            <tr><td>department</td><td>القسم</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+            <tr><td>organization</td><td>الجهة</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+            <tr><td>position</td><td>المنصب/الوظيفة</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+            <tr><td>phone</td><td>رقم الهاتف</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+            <tr><td>email</td><td>البريد الإلكتروني</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+            <tr><td>hire_date</td><td>تاريخ التعيين (YYYY-MM-DD)</td><td><span class="badge bg-secondary">اختياري</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-warning py-2 mt-2" style="font-size:.83rem;">
+          <i class="fa-solid fa-triangle-exclamation me-1"></i>
+          الموظفون الذين لديهم نفس الكود لن يُضافوا مجدداً (مكرر).
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
