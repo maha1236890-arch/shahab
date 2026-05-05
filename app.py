@@ -617,13 +617,15 @@ def about():
     last_bk    = db.get_setting("last_backup", "لم يتم بعد")
     version    = db.get_setting("app_version", "2.0.0")
     lic_status = lic.get_license_status()
-    # آخر 30 سطر من ملف الأخطاء
+    # آخر 30 سطر من ملف الأخطاء (الأخطاء الحقيقية فقط)
     error_log_lines = []
     try:
         log_path = os.path.join(os.path.dirname(db.DB_PATH), "error.log")
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-                error_log_lines = f.readlines()[-30:]
+                all_lines = f.readlines()
+            skip = (" [INFO] ", '" 200 ', '" 304 ', '" 301 ', '" 302 ')
+            error_log_lines = [l for l in all_lines if not any(s in l for s in skip)][-30:]
     except Exception:
         pass
     return render_template("about.html", backups=backups,
