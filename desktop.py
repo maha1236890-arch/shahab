@@ -322,17 +322,28 @@ class MainWindow(QMainWindow):
     # ── تنزيل الملفات ──────────────────────────────────────────────────
     def _on_download(self, item):
         from PySide6.QtWidgets import QFileDialog
-        suggested = item.suggestedFileName() or "backup.db"
-        # مجلد التنزيلات الافتراضي
+        suggested = item.suggestedFileName() or "file"
+        ext = os.path.splitext(suggested)[1].lower()
+
+        if ext == ".db":
+            file_filter = "Database Files (*.db);;All Files (*)"
+        elif ext == ".xlsx":
+            file_filter = "Excel Files (*.xlsx);;All Files (*)"
+        elif ext == ".pdf":
+            file_filter = "PDF Files (*.pdf);;All Files (*)"
+        else:
+            file_filter = "All Files (*)"
+
         if sys.platform == "win32":
             default_dir = os.path.join(os.path.expanduser("~"), "Downloads")
         else:
             default_dir = os.path.join(os.path.expanduser("~"), "Downloads")
         os.makedirs(default_dir, exist_ok=True)
+
         save_path, _ = QFileDialog.getSaveFileName(
-            self, "حفظ النسخة الاحتياطية",
+            self, "حفظ الملف",
             os.path.join(default_dir, suggested),
-            "Database Files (*.db);;All Files (*)"
+            file_filter
         )
         if save_path:
             item.setDownloadDirectory(os.path.dirname(save_path))
