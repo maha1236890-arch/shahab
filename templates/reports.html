@@ -13,35 +13,35 @@
   <div class="card-body">
     <form method="get" id="reportForm">
       <div class="row g-3">
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" style="min-width:0;overflow:hidden;">
           <label class="form-label fw-semibold">من تاريخ</label>
           <input type="date" name="from_date" class="form-control" value="{{ from_date }}">
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" style="min-width:0;overflow:hidden;">
           <label class="form-label fw-semibold">إلى تاريخ</label>
           <input type="date" name="to_date" class="form-control" value="{{ to_date }}">
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" style="min-width:0;overflow:hidden;">
           <label class="form-label fw-semibold">القسم</label>
-          <select name="department" class="form-select">
+          <select name="department" class="form-select" style="max-width:100%;width:100%;">
             <option value="">— الكل —</option>
             {% for d in departments %}
             <option value="{{ d }}" {{ 'selected' if d == dept }}>{{ d }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" style="min-width:0;overflow:hidden;">
           <label class="form-label fw-semibold">الفرع</label>
-          <select name="branch" class="form-select">
+          <select name="branch" class="form-select" style="max-width:100%;width:100%;">
             <option value="">— الكل —</option>
             {% for br in all_branches %}
             <option value="{{ br.name }}" {{ 'selected' if br.name == branch }}>{{ br.name }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="col-sm-6 col-md-3">
+        <div class="col-sm-6 col-md-3" style="min-width:0;overflow:hidden;">
           <label class="form-label fw-semibold">الموظف</label>
-          <select name="employee_id" class="form-select">
+          <select name="employee_id" class="form-select" style="max-width:100%;width:100%;">
             <option value="">— الكل —</option>
             {% for e in all_employees %}
             <option value="{{ e.id }}" {{ 'selected' if e.id|string == emp_id }}>
