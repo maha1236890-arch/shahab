@@ -266,6 +266,10 @@
     [data-theme="dark"] .table-hover tbody tr:hover td { background: transparent !important; }
     [data-theme="dark"] .tbl-wrap            { box-shadow: 0 1px 5px rgba(0,0,0,.4); }
 
+    /* إصلاح تمدد القوائم المنسدلة داخل Bootstrap flex columns */
+    .row > [class*="col-"] { min-width: 0; }
+    .form-select, .form-control { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
+
     /* نماذج */
     [data-theme="dark"] .form-control,
     [data-theme="dark"] .form-select        { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
