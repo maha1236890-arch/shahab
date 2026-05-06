@@ -499,29 +499,39 @@ def _report_data_from_args():
 @app.route("/reports/export/excel")
 @login_required
 def export_excel():
-    from_date, to_date, data = _report_data_from_args()
-    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-    tmp.close()
-    eu.export_to_excel(data, from_date, to_date, tmp.name)
-    return send_file(
-        tmp.name, as_attachment=True,
-        download_name=f"attendance_{from_date}_{to_date}.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+    try:
+        from_date, to_date, data = _report_data_from_args()
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        tmp.close()
+        eu.export_to_excel(data, from_date, to_date, tmp.name)
+        return send_file(
+            tmp.name, as_attachment=True,
+            download_name=f"attendance_{from_date}_{to_date}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        import traceback
+        app.logger.error("Excel export error: %s\n%s", e, traceback.format_exc())
+        return f"<h3>خطأ في تصدير Excel</h3><pre>{e}</pre>", 500
 
 
 @app.route("/reports/export/pdf")
 @login_required
 def export_pdf():
-    from_date, to_date, data = _report_data_from_args()
-    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
-    tmp.close()
-    eu.export_to_pdf(data, from_date, to_date, tmp.name)
-    return send_file(
-        tmp.name, as_attachment=True,
-        download_name=f"attendance_{from_date}_{to_date}.pdf",
-        mimetype="application/pdf",
-    )
+    try:
+        from_date, to_date, data = _report_data_from_args()
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.close()
+        eu.export_to_pdf(data, from_date, to_date, tmp.name)
+        return send_file(
+            tmp.name, as_attachment=True,
+            download_name=f"attendance_{from_date}_{to_date}.pdf",
+            mimetype="application/pdf",
+        )
+    except Exception as e:
+        import traceback
+        app.logger.error("PDF export error: %s\n%s", e, traceback.format_exc())
+        return f"<h3>خطأ في تصدير PDF</h3><pre>{e}</pre>", 500
 
 
 # ── المستخدمون ─────────────────────────────────────────────────────────────
@@ -960,6 +970,21 @@ def internal_server_error(e):
 def forbidden(e):
     flash("ليس لديك صلاحية للوصول إلى هذه الصفحة", "danger")
     return redirect(url_for("dashboard")), 303
+
+
+@app.route("/debug/libs")
+@admin_required
+def debug_libs():
+    """مسار تشخيصي — يختبر استيراد مكتبات التصدير"""
+    results = {}
+    for lib in ["openpyxl", "reportlab", "arabic_reshaper", "bidi"]:
+        try:
+            __import__(lib)
+            results[lib] = "✅ OK"
+        except Exception as e:
+            results[lib] = f"❌ {e}"
+    rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in results.items())
+    return f"<table border=1>{rows}</table>"
 
 
 # ── نقطة التشغيل ──────────────────────────────────────────────────────────
