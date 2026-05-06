@@ -548,28 +548,113 @@
     icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
   }
 
-  /* ── إصلاح تمدد القوائم المنسدلة ── */
-  function lockSelectWidths() {
-    document.querySelectorAll('select.form-select').forEach(function(sel) {
-      sel.style.width = '';
-      sel.style.maxWidth = '';
-      var w = sel.getBoundingClientRect().width;
-      if (w > 0) {
-        sel.style.width    = w + 'px';
-        sel.style.maxWidth = w + 'px';
-        sel.style.minWidth = '0';
+  /* ── Custom Select Dropdown (احترافي - لا يتمدد خارج العمود) ── */
+  (function () {
+    var CSS = `
+      .cs-wrap { position: relative; width: 100%; }
+      .cs-btn {
+        width: 100%; display: flex; align-items: center; justify-content: space-between;
+        padding: .4rem .85rem; border-radius: .5rem; cursor: pointer; user-select: none;
+        background: var(--bs-body-bg, #fff); border: 1.5px solid #cbd5e1;
+        font-family: 'Cairo', sans-serif; font-size: .97rem; color: inherit;
+        transition: border-color .15s, box-shadow .15s;
       }
+      .cs-btn:focus, .cs-btn.open { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); outline: none; }
+      .cs-btn .cs-val { flex: 1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .cs-btn .cs-arrow { margin-right: .5rem; color: #94a3b8; transition: transform .2s; flex-shrink:0; }
+      .cs-btn.open .cs-arrow { transform: rotate(180deg); }
+      .cs-menu {
+        position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+        background: var(--bs-body-bg, #fff); border: 1.5px solid #e2e8f0;
+        border-radius: .6rem; box-shadow: 0 8px 24px rgba(15,52,96,.13);
+        z-index: 9999; max-height: 240px; overflow-y: auto;
+        display: none; padding: .3rem 0;
+        animation: csFadeIn .12s ease;
+      }
+      .cs-menu.show { display: block; }
+      @keyframes csFadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+      .cs-item {
+        padding: .48rem 1rem; cursor: pointer; font-size: .95rem;
+        transition: background .1s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .cs-item:hover { background: #f0f6ff; }
+      .cs-item.active { background: #2563eb; color: #fff; font-weight: 600; }
+      [data-theme="dark"] .cs-btn { background: #1a1f2e; border-color: #30363d; color: #c9d1d9; }
+      [data-theme="dark"] .cs-btn:focus, [data-theme="dark"] .cs-btn.open { border-color: #1f6feb; box-shadow: 0 0 0 3px rgba(31,111,235,.2); }
+      [data-theme="dark"] .cs-menu { background: #1a1f2e; border-color: #30363d; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+      [data-theme="dark"] .cs-item:hover { background: #1f2937; }
+      [data-theme="dark"] .cs-item.active { background: #1f6feb; }
+    `;
+    var style = document.createElement('style');
+    style.textContent = CSS;
+    document.head.appendChild(style);
+
+    function buildSelect(sel) {
+      if (sel._csBuilt) return;
+      sel._csBuilt = true;
+      sel.style.display = 'none';
+
+      var wrap = document.createElement('div');
+      wrap.className = 'cs-wrap';
+      sel.parentNode.insertBefore(wrap, sel);
+      wrap.appendChild(sel);
+
+      var btn = document.createElement('div');
+      btn.className = 'cs-btn';
+      btn.setAttribute('tabindex', '0');
+      btn.innerHTML = '<span class="cs-val"></span><i class="fa-solid fa-chevron-down cs-arrow"></i>';
+      wrap.appendChild(btn);
+
+      var menu = document.createElement('div');
+      menu.className = 'cs-menu';
+      wrap.appendChild(menu);
+
+      function refresh() {
+        var cur = sel.options[sel.selectedIndex];
+        btn.querySelector('.cs-val').textContent = cur ? cur.text : '';
+        menu.innerHTML = '';
+        Array.from(sel.options).forEach(function (opt) {
+          var item = document.createElement('div');
+          item.className = 'cs-item' + (opt.value === sel.value ? ' active' : '');
+          item.textContent = opt.text;
+          item.dataset.val = opt.value;
+          item.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            sel.value = opt.value;
+            refresh();
+            close();
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+          });
+          menu.appendChild(item);
+        });
+      }
+
+      function open() {
+        document.querySelectorAll('.cs-menu.show').forEach(function (m) { m.classList.remove('show'); m.previousElementSibling && m.previousElementSibling.classList.remove('open'); });
+        menu.classList.add('show');
+        btn.classList.add('open');
+      }
+      function close() { menu.classList.remove('show'); btn.classList.remove('open'); }
+      function toggle() { menu.classList.contains('show') ? close() : open(); }
+
+      btn.addEventListener('click', function (e) { e.stopPropagation(); toggle(); });
+      btn.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      document.addEventListener('click', function () { close(); });
+
+      new MutationObserver(refresh).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['selected'] });
+      refresh();
+    }
+
+    function initAll() {
+      document.querySelectorAll('select.form-select').forEach(buildSelect);
+    }
+
+    document.addEventListener('DOMContentLoaded', initAll);
+    // دعم الصفحات التي تضيف selects ديناميكياً
+    document.addEventListener('DOMContentLoaded', function () {
+      new MutationObserver(function () { initAll(); }).observe(document.body, { childList: true, subtree: true });
     });
-  }
-  document.addEventListener('DOMContentLoaded', function() {
-    lockSelectWidths();
-    window.addEventListener('resize', function() {
-      document.querySelectorAll('select.form-select').forEach(function(s) {
-        s.style.width = ''; s.style.maxWidth = ''; s.style.minWidth = '';
-      });
-      setTimeout(lockSelectWidths, 50);
-    });
-  });
+  })();
 </script>
 {% block scripts %}{% endblock %}
 </body>
