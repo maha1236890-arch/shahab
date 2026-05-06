@@ -547,6 +547,29 @@
     if (!icon) return;
     icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
   }
+
+  /* ── إصلاح تمدد القوائم المنسدلة ── */
+  function lockSelectWidths() {
+    document.querySelectorAll('select.form-select').forEach(function(sel) {
+      sel.style.width = '';
+      sel.style.maxWidth = '';
+      var w = sel.getBoundingClientRect().width;
+      if (w > 0) {
+        sel.style.width    = w + 'px';
+        sel.style.maxWidth = w + 'px';
+        sel.style.minWidth = '0';
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    lockSelectWidths();
+    window.addEventListener('resize', function() {
+      document.querySelectorAll('select.form-select').forEach(function(s) {
+        s.style.width = ''; s.style.maxWidth = ''; s.style.minWidth = '';
+      });
+      setTimeout(lockSelectWidths, 50);
+    });
+  });
 </script>
 {% block scripts %}{% endblock %}
 </body>
