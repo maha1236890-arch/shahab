@@ -307,6 +307,9 @@ class MainWindow(QMainWindow):
         s.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         s.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)
 
+        # ── معالج تنزيل الملفات ──────────────────────────────────────
+        profile.downloadRequested.connect(self._on_download)
+
         self.web.setUrl(QUrl(self.app_url))
         self.web.loadStarted.connect(lambda: self.sb.showMessage("⌛ جارٍ التحميل..."))
         self.web.loadFinished.connect(
@@ -316,7 +319,30 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.web)
 
-    # ── شريط الحالة ────────────────────────────────────────────────────
+    # ── تنزيل الملفات ──────────────────────────────────────────────────
+    def _on_download(self, item):
+        from PySide6.QtWidgets import QFileDialog
+        suggested = item.suggestedFileName() or "backup.db"
+        # مجلد التنزيلات الافتراضي
+        if sys.platform == "win32":
+            default_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        else:
+            default_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+        os.makedirs(default_dir, exist_ok=True)
+        save_path, _ = QFileDialog.getSaveFileName(
+            self, "حفظ النسخة الاحتياطية",
+            os.path.join(default_dir, suggested),
+            "Database Files (*.db);;All Files (*)"
+        )
+        if save_path:
+            item.setDownloadDirectory(os.path.dirname(save_path))
+            item.setDownloadFileName(os.path.basename(save_path))
+            item.accept()
+            self.sb.showMessage(f"✔ جارٍ التنزيل: {os.path.basename(save_path)}")
+        else:
+            item.cancel()
+
+
     def _build_statusbar(self):
         self.sb = QStatusBar()
         self.sb.setStyleSheet("font-size:12px; color:#555;")
