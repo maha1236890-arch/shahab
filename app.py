@@ -585,8 +585,8 @@ def change_password():
             if not user:
                 flash("كلمة المرور الحالية غير صحيحة", "danger")
                 return render_template("change_password.html", first_run=first_run)
-        if len(new_pw) < 6:
-            flash("كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل", "danger")
+        if not new_pw:
+            flash("كلمة المرور لا يمكن أن تكون فارغة", "danger")
             return render_template("change_password.html", first_run=first_run)
         if new_pw != confirm:
             flash("كلمة المرور وتأكيدها غير متطابقتين", "danger")
