@@ -3,12 +3,18 @@
 # يُشغَّل من مجلد المشروع على جهاز Windows
 
 import os
+from PyInstaller.utils.hooks import collect_all
+
 BASE = os.path.abspath('.')
+
+# تضمين كامل لمكتبات Excel وPDF
+openpyxl_datas,   openpyxl_bins,   openpyxl_hidden   = collect_all('openpyxl')
+reportlab_datas,  reportlab_bins,  reportlab_hidden  = collect_all('reportlab')
 
 a = Analysis(
     ['desktop.py'],
     pathex=[BASE],
-    binaries=[],
+    binaries=[] + openpyxl_bins + reportlab_bins,
     datas=[
         ('templates',           'templates'),
         ('static',              'static'),
@@ -18,10 +24,9 @@ a = Analysis(
         ('license.py',          '.'),
         ('admin_panel.py',      '.'),
         ('static/img/icon.ico', 'static/img'),
-    ],
+    ] + openpyxl_datas + reportlab_datas,
     hiddenimports=[
         'flask', 'jinja2', 'werkzeug', 'click',
-        'openpyxl', 'reportlab',
         'arabic_reshaper', 'bidi',
         'sqlite3', 'license',
         'PySide6.QtWebEngineWidgets',
@@ -30,7 +35,7 @@ a = Analysis(
         'PySide6.QtCore',
         'PySide6.QtGui',
         'PySide6.QtWidgets',
-    ],
+    ] + openpyxl_hidden + reportlab_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
