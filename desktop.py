@@ -238,11 +238,10 @@ class _AttendancePage(QWebEnginePage):
 
     def __init__(self, profile, parent=None):
         super().__init__(profile, parent)
-        self._cookies = {}  # name -> value
+        self._cookies = {}
         store = profile.cookieStore()
         store.cookieAdded.connect(self._store_cookie)
         store.cookieRemoved.connect(self._remove_cookie)
-        store.loadAllCookies()
 
     def _store_cookie(self, cookie):
         name  = bytes(cookie.name()).decode('utf-8', errors='replace')
@@ -261,9 +260,15 @@ class _AttendancePage(QWebEnginePage):
             return False
         return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
+    def _show_error(self, title, msg):
+        """يعرض الخطأ داخل صفحة الويب كـ alert مضمون الظهور"""
+        safe = msg.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+        self.runJavaScript(f"alert('{title}\\n{safe}')")
+
     def _download(self, url_str):
         import urllib.request
-        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        import urllib.error
+        from PySide6.QtWidgets import QFileDialog
 
         cookie_header = "; ".join(f"{k}={v}" for k, v in self._cookies.items())
 
@@ -272,13 +277,36 @@ class _AttendancePage(QWebEnginePage):
             if cookie_header:
                 req.add_header("Cookie", cookie_header)
 
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                # إذا أُعيد توجيهنا لصفحة تسجيل الدخول — انتهت الجلسة
-                if 'login' in resp.url:
-                    QMessageBox.warning(None, "انتهت الجلسة", "يرجى تسجيل الدخول من جديد")
+            try:
+                response = urllib.request.urlopen(req, timeout=30)
+            except urllib.error.HTTPError as e:
+                # خطأ من الخادم — اقرأ الرسالة وأظهرها
+                body = e.read().decode('utf-8', errors='replace')
+                import re
+                text = re.sub(r'<[^>]+>', ' ', body).strip()[:300]
+                self._show_error(f"خطأ {e.code} من الخادم", text)
+                logging.error("HTTP %s for %s: %s", e.code, url_str, text)
+                return
+            except urllib.error.URLError as e:
+                self._show_error("خطأ في الاتصال", str(e.reason))
+                return
+
+            with response as resp:
+                if 'login' in (resp.url or ''):
+                    self._show_error("انتهت الجلسة", "يرجى تسجيل الدخول من جديد")
                     return
 
                 data = resp.read()
+
+                # إذا رجع HTML بدل ملف — خطأ في الخادم
+                ct = resp.headers.get("Content-Type", "")
+                if "text/html" in ct:
+                    import re
+                    text = re.sub(r'<[^>]+>', ' ', data.decode('utf-8', 'replace')).strip()[:300]
+                    self._show_error("خطأ في الخادم", text)
+                    logging.error("HTML response for %s: %s", url_str, text)
+                    return
+
                 cd = resp.headers.get("Content-Disposition", "")
                 suggested = ""
                 if "filename=" in cd:
@@ -309,8 +337,8 @@ class _AttendancePage(QWebEnginePage):
                         f.write(data)
 
         except Exception as e:
-            logging.error("_AttendancePage._download error: %s", e)
-            QMessageBox.critical(None, "خطأ في التنزيل", str(e))
+            logging.error("_download error: %s", e, exc_info=True)
+            self._show_error("خطأ غير متوقع", str(e))
 
 
 # ══════════════════════════════════════════════════════════════════════════
