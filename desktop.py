@@ -65,7 +65,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                                QMessageBox, QSizePolicy, QFrame,
                                QDialog, QPushButton)
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWebEngineCore    import QWebEngineSettings, QWebEngineProfile
+from PySide6.QtWebEngineCore    import QWebEngineSettings, QWebEngineProfile, QWebEnginePage
 from PySide6.QtNetwork          import QNetworkProxy
 
 # تعطيل proxy النظام لمنع مشاكل الاتصال بـ localhost
@@ -225,7 +225,94 @@ class SplashScreen(QWidget):
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# 3. النافذة الرئيسية
+# 3. صفحة ويب مخصصة — تعترض روابط التصدير وتنزّلها عبر Python
+# ══════════════════════════════════════════════════════════════════════════
+class _AttendancePage(QWebEnginePage):
+    """تعترض روابط /reports/export/* و /backup/download/* وتنزّلها مباشرة"""
+
+    # مسارات التصدير التي يجب اعتراضها
+    _EXPORT_PATTERNS = (
+        "/reports/export/excel",
+        "/reports/export/pdf",
+        "/backup/download/",
+    )
+
+    def __init__(self, profile, parent=None):
+        super().__init__(profile, parent)
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):
+        path = url.path()
+        if any(path.startswith(p) for p in self._EXPORT_PATTERNS):
+            # نُنزَّل الملف في خيط منفصل حتى لا يتجمد الواجهة
+            QTimer.singleShot(0, lambda: self._download(url.toString()))
+            return False  # لا تنتقل إلى الرابط داخل التطبيق
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+    def _download(self, url_str):
+        import urllib.request
+        from PySide6.QtWidgets import QFileDialog
+        from PySide6.QtCore import QEventLoop
+        from PySide6.QtNetwork import QNetworkCookie
+
+        # جمع الكوكيز من المتصفح وإرسالها مع الطلب
+        cookies_collected = []
+        loop = QEventLoop()
+
+        def on_cookies(cookies):
+            cookies_collected.extend(cookies)
+            loop.quit()
+
+        self.profile().cookieStore().getAllCookies(on_cookies)
+        loop.exec()
+
+        cookie_header = "; ".join(
+            f"{bytes(c.name()).decode()}={bytes(c.value()).decode()}"
+            for c in cookies_collected
+        )
+
+        try:
+            req = urllib.request.Request(url_str)
+            if cookie_header:
+                req.add_header("Cookie", cookie_header)
+
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                cd = resp.headers.get("Content-Disposition", "")
+                suggested = ""
+                if "filename=" in cd:
+                    suggested = cd.split("filename=")[-1].strip().strip('"')
+                if not suggested:
+                    suggested = url_str.split("/")[-1].split("?")[0] or "file"
+
+                ext = os.path.splitext(suggested)[1].lower()
+                if ext == ".xlsx":
+                    file_filter = "Excel Files (*.xlsx);;All Files (*)"
+                elif ext == ".pdf":
+                    file_filter = "PDF Files (*.pdf);;All Files (*)"
+                elif ext == ".db":
+                    file_filter = "Database Files (*.db);;All Files (*)"
+                else:
+                    file_filter = "All Files (*)"
+
+                default_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+                os.makedirs(default_dir, exist_ok=True)
+
+                save_path, _ = QFileDialog.getSaveFileName(
+                    None, "حفظ الملف",
+                    os.path.join(default_dir, suggested),
+                    file_filter
+                )
+                if save_path:
+                    data = resp.read()
+                    with open(save_path, "wb") as f:
+                        f.write(data)
+        except Exception as e:
+            logging.error("_AttendancePage._download error: %s", e)
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(None, "خطأ في التنزيل", str(e))
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 4. النافذة الرئيسية
 # ══════════════════════════════════════════════════════════════════════════
 class MainWindow(QMainWindow):
     def __init__(self, app_url: str):
@@ -302,12 +389,16 @@ class MainWindow(QMainWindow):
         profile.clearAllVisitedLinks()
 
         self.web = QWebEngineView()
+        # استخدام صفحة مخصصة تعترض روابط التصدير
+        page = _AttendancePage(profile, self.web)
+        self.web.setPage(page)
+
         s = self.web.settings()
         s.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         s.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         s.setAttribute(QWebEngineSettings.WebAttribute.PluginsEnabled, True)
 
-        # ── معالج تنزيل الملفات ──────────────────────────────────────
+        # معالج احتياطي للتنزيلات التي لا يعترضها _AttendancePage
         profile.downloadRequested.connect(self._on_download)
 
         self.web.setUrl(QUrl(self.app_url))
