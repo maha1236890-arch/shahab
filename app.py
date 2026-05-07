@@ -673,6 +673,50 @@ def download_backup(filename):
                      as_attachment=True, download_name=filename)
 
 
+@app.route("/backup/export/excel")
+@admin_required
+def backup_export_excel():
+    try:
+        from_date = "2000-01-01"
+        to_date   = date.today().isoformat()
+        data = db.get_attendance_report(from_date, to_date)
+        tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        tmp.close()
+        eu.export_to_excel(data, from_date, to_date, tmp.name)
+        fname = f"backup_all_{date.today().isoformat()}.xlsx"
+        return send_file(
+            tmp.name, as_attachment=True,
+            download_name=fname,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as e:
+        import traceback
+        app.logger.error("Backup Excel export error: %s\n%s", e, traceback.format_exc())
+        return f"<h3>خطأ في تصدير Excel</h3><pre>{e}</pre>", 500
+
+
+@app.route("/backup/export/pdf")
+@admin_required
+def backup_export_pdf():
+    try:
+        from_date = "2000-01-01"
+        to_date   = date.today().isoformat()
+        data = db.get_attendance_report(from_date, to_date)
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        tmp.close()
+        eu.export_to_pdf(data, from_date, to_date, tmp.name)
+        fname = f"backup_all_{date.today().isoformat()}.pdf"
+        return send_file(
+            tmp.name, as_attachment=True,
+            download_name=fname,
+            mimetype="application/pdf",
+        )
+    except Exception as e:
+        import traceback
+        app.logger.error("Backup PDF export error: %s\n%s", e, traceback.format_exc())
+        return f"<h3>خطأ في تصدير PDF</h3><pre>{e}</pre>", 500
+
+
 # ── تقرير الموظف الفردي ─────────────────────────────────────────────────
 
 @app.route("/employees/<int:emp_id>/report")

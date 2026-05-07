@@ -234,6 +234,8 @@ class _AttendancePage(QWebEnginePage):
         "/reports/export/excel",
         "/reports/export/pdf",
         "/backup/download/",
+        "/backup/export/excel",
+        "/backup/export/pdf",
     )
 
     def __init__(self, profile, parent=None):

@@ -122,6 +122,15 @@
           </button>
         </form>
 
+        <div class="d-flex gap-2 mb-3">
+          <a href="{{ url_for('backup_export_excel') }}" class="btn btn-success flex-fill">
+            <i class="fa-solid fa-file-excel me-1"></i>تصدير Excel
+          </a>
+          <a href="{{ url_for('backup_export_pdf') }}" class="btn btn-danger flex-fill">
+            <i class="fa-solid fa-file-pdf me-1"></i>تصدير PDF
+          </a>
+        </div>
+
         {% if backups %}
         <h6 class="text-secondary mb-2"><i class="fa-solid fa-clock-rotate-left me-1"></i>النسخ المتاحة</h6>
         <div class="list-group list-group-flush flex-fill overflow-auto" style="max-height:220px">
