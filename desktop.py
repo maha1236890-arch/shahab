@@ -230,7 +230,6 @@ class SplashScreen(QWidget):
 class _AttendancePage(QWebEnginePage):
     """تعترض روابط /reports/export/* و /backup/download/* وتنزّلها مباشرة"""
 
-    # مسارات التصدير التي يجب اعتراضها
     _EXPORT_PATTERNS = (
         "/reports/export/excel",
         "/reports/export/pdf",
@@ -239,36 +238,34 @@ class _AttendancePage(QWebEnginePage):
 
     def __init__(self, profile, parent=None):
         super().__init__(profile, parent)
+        self._cookies = {}  # name -> value
+        store = profile.cookieStore()
+        store.cookieAdded.connect(self._store_cookie)
+        store.cookieRemoved.connect(self._remove_cookie)
+        store.loadAllCookies()
+
+    def _store_cookie(self, cookie):
+        name  = bytes(cookie.name()).decode('utf-8', errors='replace')
+        value = bytes(cookie.value()).decode('utf-8', errors='replace')
+        self._cookies[name] = value
+
+    def _remove_cookie(self, cookie):
+        name = bytes(cookie.name()).decode('utf-8', errors='replace')
+        self._cookies.pop(name, None)
 
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         path = url.path()
         if any(path.startswith(p) for p in self._EXPORT_PATTERNS):
-            # نُنزَّل الملف في خيط منفصل حتى لا يتجمد الواجهة
-            QTimer.singleShot(0, lambda: self._download(url.toString()))
-            return False  # لا تنتقل إلى الرابط داخل التطبيق
+            url_str = url.toString()
+            QTimer.singleShot(0, lambda: self._download(url_str))
+            return False
         return super().acceptNavigationRequest(url, nav_type, is_main_frame)
 
     def _download(self, url_str):
         import urllib.request
-        from PySide6.QtWidgets import QFileDialog
-        from PySide6.QtCore import QEventLoop
-        from PySide6.QtNetwork import QNetworkCookie
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
 
-        # جمع الكوكيز من المتصفح وإرسالها مع الطلب
-        cookies_collected = []
-        loop = QEventLoop()
-
-        def on_cookies(cookies):
-            cookies_collected.extend(cookies)
-            loop.quit()
-
-        self.profile().cookieStore().getAllCookies(on_cookies)
-        loop.exec()
-
-        cookie_header = "; ".join(
-            f"{bytes(c.name()).decode()}={bytes(c.value()).decode()}"
-            for c in cookies_collected
-        )
+        cookie_header = "; ".join(f"{k}={v}" for k, v in self._cookies.items())
 
         try:
             req = urllib.request.Request(url_str)
@@ -276,6 +273,12 @@ class _AttendancePage(QWebEnginePage):
                 req.add_header("Cookie", cookie_header)
 
             with urllib.request.urlopen(req, timeout=30) as resp:
+                # إذا أُعيد توجيهنا لصفحة تسجيل الدخول — انتهت الجلسة
+                if 'login' in resp.url:
+                    QMessageBox.warning(None, "انتهت الجلسة", "يرجى تسجيل الدخول من جديد")
+                    return
+
+                data = resp.read()
                 cd = resp.headers.get("Content-Disposition", "")
                 suggested = ""
                 if "filename=" in cd:
@@ -302,12 +305,11 @@ class _AttendancePage(QWebEnginePage):
                     file_filter
                 )
                 if save_path:
-                    data = resp.read()
                     with open(save_path, "wb") as f:
                         f.write(data)
+
         except Exception as e:
             logging.error("_AttendancePage._download error: %s", e)
-            from PySide6.QtWidgets import QMessageBox
             QMessageBox.critical(None, "خطأ في التنزيل", str(e))
 
 
