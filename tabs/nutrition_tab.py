@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QAbstractItemView, QFrame, QTextEdit, QMessageBox, QGridLayout,
     QTabWidget, QComboBox
 )
-from PyQt5.QtCore import Qt, QDate
+from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QColor
 from datetime import datetime
 import printing_utils
@@ -53,6 +53,8 @@ class SpinCard(QFrame):
 
 
 class NutritionTab(QWidget):
+    data_changed = pyqtSignal()   # يُطلق بعد كل تغيير في سجلات التغذية
+
     def __init__(self, db):
         super().__init__()
         self.db = db
@@ -260,6 +262,7 @@ class NutritionTab(QWidget):
             QMessageBox.information(self, '✅ نجاح', 'تم حفظ التسجيل بنجاح')
 
         self.load_records()
+        self.data_changed.emit()
 
     def load_records(self):
         date_str = self.date_edit.date().toString('yyyy-MM-dd')
@@ -387,6 +390,7 @@ class NutritionTab(QWidget):
         )
         if reply == QMessageBox.Yes:
             self.db.delete_nutrition(record_id)
+            self.data_changed.emit()
             self.load_records()
 
     def _print_invoice(self):

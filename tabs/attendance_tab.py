@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QLabel, QFrame, QDateEdit, QHeaderView, QAbstractItemView,
     QMessageBox, QTabWidget
 )
-from PyQt5.QtCore import Qt, QDate
+from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 from datetime import datetime
 import printing_utils
@@ -49,6 +49,8 @@ class StatCard(QFrame):
 
 
 class AttendanceTab(QWidget):
+    data_changed = pyqtSignal()   # يُطلق بعد كل تغيير في الحضور
+
     def __init__(self, db):
         super().__init__()
         self.db = db
@@ -318,6 +320,7 @@ class AttendanceTab(QWidget):
         self.load_attendance()
         if 0 <= current_idx < self.dept_tabs.count():
             self.dept_tabs.setCurrentIndex(current_idx)
+        self.data_changed.emit()
         try:
             main_win = self.window()
             emp = self.db.get_employee_by_id(employee_id)
@@ -342,6 +345,7 @@ class AttendanceTab(QWidget):
         self.load_attendance()
         if 0 <= current_idx < self.dept_tabs.count():
             self.dept_tabs.setCurrentIndex(current_idx)
+        self.data_changed.emit()
         try:
             main_win = self.window()
             if hasattr(main_win, 'show_toast'):
@@ -359,6 +363,7 @@ class AttendanceTab(QWidget):
         for emp in self.db.get_all_employees():
             self.db.mark_attendance(emp['id'], date_str, 'حاضر', time_in)
         self.load_attendance()
+        self.data_changed.emit()
         try:
             main_win = self.window()
             if hasattr(main_win, 'show_toast'):
@@ -380,6 +385,7 @@ class AttendanceTab(QWidget):
             for emp in self.db.get_all_employees():
                 self.db.mark_attendance(emp['id'], date_str, 'غائب', None)
             self.load_attendance()
+            self.data_changed.emit()
             try:
                 main_win = self.window()
                 if hasattr(main_win, 'show_toast'):

@@ -24,7 +24,11 @@ DEPT_COLORS = [
 
 
 class EmployeeCard(QFrame):
-    def __init__(self, emp, color='#1f6feb', bg='#0d2040'):
+    def __init__(self, emp, color='#1f6feb', bg='#0d2040', qat_info=None):
+        """
+        emp       - sqlite3.Row أو dict
+        qat_info  - {'function_name':str, 'count':int, 'lighter_count':int} أو None
+        """
         super().__init__()
         self.setObjectName('card')
         self.setStyleSheet(f'''
@@ -38,7 +42,7 @@ class EmployeeCard(QFrame):
         self.setFixedWidth(200)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
+        layout.setSpacing(3)
         layout.setContentsMargins(8, 8, 8, 8)
 
         code_label = QLabel(emp['code'])
@@ -61,9 +65,33 @@ class EmployeeCard(QFrame):
         layout.addWidget(name_label)
         layout.addWidget(time_label)
 
+        # عرض الظيف والقات إن وجد
+        if qat_info:
+            sep = QFrame()
+            sep.setFrameShape(QFrame.HLine)
+            sep.setStyleSheet('color: #30363d; margin: 2px 0;')
+            layout.addWidget(sep)
+
+            if qat_info.get('function_name'):
+                fn_lbl = QLabel(f'💼 ظيف: {qat_info["function_name"]}')
+                fn_lbl.setStyleSheet('color: #e3b341; font-size: 11px; background: transparent;')
+                fn_lbl.setAlignment(Qt.AlignCenter)
+                fn_lbl.setWordWrap(True)
+                layout.addWidget(fn_lbl)
+
+            qat_lbl = QLabel(f'🌿 {qat_info["count"]} قات  🔥 {qat_info["lighter_count"]} ولاعة')
+            qat_lbl.setStyleSheet('color: #56d364; font-size: 11px; font-weight:bold; background: transparent;')
+            qat_lbl.setAlignment(Qt.AlignCenter)
+            layout.addWidget(qat_lbl)
+
 
 class DepartmentSection(QFrame):
-    def __init__(self, dept_name, employees, color, bg):
+    def __init__(self, dept_name, employees, color, bg,
+                 qat_by_emp=None, nutrition_records=None):
+        """
+        qat_by_emp       - {employee_id: {'function_name','count','lighter_count'}}
+        nutrition_records - list of nutrition rows for this dept
+        """
         super().__init__()
         self.setObjectName('card')
         self.setStyleSheet(f'''
@@ -79,7 +107,7 @@ class DepartmentSection(QFrame):
         layout.setSpacing(8)
         layout.setContentsMargins(12, 12, 12, 12)
 
-        # Header
+        # ── Header: اسم القسم + إحصائيات ──
         header = QHBoxLayout()
         dept_label = QLabel(f'🏢 {dept_name}')
         dept_label.setStyleSheet(
@@ -95,14 +123,51 @@ class DepartmentSection(QFrame):
         header.addWidget(count_label)
         layout.addLayout(header)
 
-        # Employee cards in grid
+        # ── ملخص القات لهذا القسم ──
+        qat_total = sum((qat_by_emp or {}).get(e['id'], {}).get('count', 0)
+                        for e in employees)
+        lighter_total = sum((qat_by_emp or {}).get(e['id'], {}).get('lighter_count', 0)
+                            for e in employees)
+
+        # ملخص التغذية لهذا القسم
+        nut_food = sum(r['food_count'] or 0 for r in (nutrition_records or []))
+        nut_qat  = sum(r['qat_count']  or 0 for r in (nutrition_records or []))
+
+        has_qat  = qat_total > 0 or lighter_total > 0
+        has_nutr = nut_food > 0 or nut_qat > 0
+
+        if has_qat or has_nutr:
+            summary_row = QHBoxLayout()
+            if has_qat:
+                qat_lbl = QLabel(
+                    f'🌿 إجمالي القات: <b style="color:#56d364">{qat_total}</b>'  
+                    f'   🔥 ولاعات: <b style="color:#f0883e">{lighter_total}</b>'
+                )
+                qat_lbl.setTextFormat(Qt.RichText)
+                qat_lbl.setStyleSheet('font-size:12px; background:transparent; '
+                                      'padding:3px 8px; color:#8b949e;')
+                summary_row.addWidget(qat_lbl)
+            if has_nutr:
+                nut_lbl = QLabel(
+                    f'🍽 وجبات: <b style="color:#3fb950">{nut_food}</b>'  
+                    f'   🌿 تغذية-قات: <b style="color:#56d364">{nut_qat}</b>'
+                )
+                nut_lbl.setTextFormat(Qt.RichText)
+                nut_lbl.setStyleSheet('font-size:12px; background:transparent; '
+                                      'padding:3px 8px; color:#8b949e;')
+                summary_row.addWidget(nut_lbl)
+            summary_row.addStretch()
+            layout.addLayout(summary_row)
+
+        # ── بطاقات الموظفين ──
         if employees:
             grid_widget = QWidget()
             grid_widget.setStyleSheet('background: transparent;')
             grid = QGridLayout(grid_widget)
             grid.setSpacing(8)
             for i, emp in enumerate(employees):
-                card = EmployeeCard(emp, color, bg)
+                qat_info = (qat_by_emp or {}).get(emp['id'])
+                card = EmployeeCard(emp, color, bg, qat_info=qat_info)
                 grid.addWidget(card, i // 5, i % 5)
             layout.addWidget(grid_widget)
         else:
@@ -225,7 +290,28 @@ class PresentTab(QWidget):
         date_str = self.date_edit.date().toString('yyyy-MM-dd')
         present = self.db.get_present_employees(date_str)
 
-        # Group by department
+        # جمع سجلات القات حسب الموظف
+        qat_by_emp = {}
+        for rec in self.db.get_qat_by_date(date_str):
+            eid = rec['employee_id'] if 'employee_id' in rec.keys() else None
+            if eid and eid not in qat_by_emp:
+                qat_by_emp[eid] = {
+                    'function_name':  rec['function_name'] or '',
+                    'count':          rec['count'] or 0,
+                    'lighter_count':  rec['lighter_count'] or 0,
+                }
+            elif eid:
+                # جمع الإجماليات إذا كان للموظف أكثر من سجل
+                qat_by_emp[eid]['count']         += rec['count'] or 0
+                qat_by_emp[eid]['lighter_count'] += rec['lighter_count'] or 0
+
+        # سجلات التغذية حسب القسم
+        nut_by_dept = {}
+        for r in self.db.get_nutrition_by_date(date_str):
+            dept = r['department'] or ''
+            nut_by_dept.setdefault(dept, []).append(r)
+
+        # تجميع حسب القسم
         dept_map = {}
         for emp in present:
             dept = emp['department'] or 'غير محدد'
@@ -251,7 +337,11 @@ class PresentTab(QWidget):
         else:
             for i, (dept, emps) in enumerate(sorted(dept_map.items())):
                 color, bg = DEPT_COLORS[i % len(DEPT_COLORS)]
-                section = DepartmentSection(dept, emps, color, bg)
+                section = DepartmentSection(
+                    dept, emps, color, bg,
+                    qat_by_emp=qat_by_emp,
+                    nutrition_records=nut_by_dept.get(dept, []),
+                )
                 v_layout.addWidget(section)
 
         v_layout.addStretch()

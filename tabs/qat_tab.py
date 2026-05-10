@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QDialog, QFormLayout, QComboBox, QSpinBox, QMessageBox,
     QLineEdit
 )
-from PyQt5.QtCore import Qt, QDate
+from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QColor
 from datetime import datetime
 
@@ -114,6 +114,8 @@ class QatRecordDialog(QDialog):
 
 class DeptQatWidget(QWidget):
     """قسم خاص بكل تبويب قسم"""
+    record_changed = pyqtSignal()   # يُطلق بعد أي تغيير
+
     def __init__(self, db, department, date_getter):
         super().__init__()
         self.db = db
@@ -222,7 +224,18 @@ class DeptQatWidget(QWidget):
                 data['employee_id'], date_str,
                 data['function_name'], data['count'], data['lighter_count']
             )
+            # تحضير تلقائي: تسجيل الموظف حاضراً إن لم يكن مسجلاً
+            existing = self.db.get_attendance_by_date(date_str)
+            already_recorded = any(
+                r['employee_id'] == data['employee_id'] for r in existing
+            )
+            if not already_recorded:
+                self.db.mark_attendance(
+                    data['employee_id'], date_str, 'حاضر',
+                    datetime.now().strftime('%H:%M')
+                )
             self.load_records()
+            self.record_changed.emit()
 
     def _edit_record(self, rec):
         employees = self._get_dept_employees()
@@ -233,6 +246,7 @@ class DeptQatWidget(QWidget):
                 rec['id'], data['function_name'], data['count'], data['lighter_count']
             )
             self.load_records()
+            self.record_changed.emit()
 
     def _delete_record(self, record_id):
         reply = QMessageBox.question(
@@ -242,9 +256,12 @@ class DeptQatWidget(QWidget):
         if reply == QMessageBox.Yes:
             self.db.delete_qat_record(record_id)
             self.load_records()
+            self.record_changed.emit()
 
 
 class QatTab(QWidget):
+    data_changed = pyqtSignal()   # يُطلق عند أي تغيير في سجلات القات
+
     def __init__(self, db):
         super().__init__()
         self.db = db
@@ -303,6 +320,7 @@ class QatTab(QWidget):
 
         for dept in departments:
             widget = DeptQatWidget(self.db, dept, self._get_date)
+            widget.record_changed.connect(self.data_changed)  # ربط الإشارة
             self.dept_widgets[dept] = widget
             self.dept_tabs.addTab(widget, f'🏢 {dept}')
 

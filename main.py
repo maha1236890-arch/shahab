@@ -25,6 +25,7 @@ from tabs.attendance_tab import AttendanceTab
 from tabs.present_tab import PresentTab
 from tabs.search_tab import SearchTab
 from tabs.nutrition_tab import NutritionTab
+from tabs.distribution_tab import DistributionTab
 from tabs.visits_tab import VisitsTab
 from tabs.qat_tab import QatTab
 from tabs.departments_tab import DepartmentsTab
@@ -130,10 +131,10 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self._update_clock)
         self.timer.start(1000)
 
-        # Tab badge update timer (every 60 s)
+        # Tab badge update timer (every 30 s for faster sync)
         self._badge_timer = QTimer()
-        self._badge_timer.timeout.connect(self._update_badges)
-        self._badge_timer.start(60000)
+        self._badge_timer.timeout.connect(self._auto_refresh)
+        self._badge_timer.start(30000)
         self._update_badges()
 
         # Tab change signal
@@ -246,6 +247,7 @@ class MainWindow(QMainWindow):
         self.present_tab    = PresentTab(self.db)
         self.search_tab     = SearchTab(self.db)
         self.nutrition_tab  = NutritionTab(self.db)
+        self.distribution_tab = DistributionTab(self.db)
         self.visits_tab     = VisitsTab(self.db)
         self.qat_tab        = QatTab(self.db)
         self.departments_tab = DepartmentsTab(self.db)
@@ -254,6 +256,11 @@ class MainWindow(QMainWindow):
 
         # Connect dashboard "quick action" click → switch tab
         self.dashboard_tab.switch_to_tab.connect(self.tab_widget.setCurrentIndex)
+
+        # ── ربط إشارات التغيير لتحديث جميع التبويبات تلقائياً ──
+        self.attendance_tab.data_changed.connect(self._on_attendance_changed)
+        self.nutrition_tab.data_changed.connect(self._on_nutrition_changed)
+        self.qat_tab.data_changed.connect(self._on_qat_changed)
 
         # Tabs visible per role:
         # admin:       all tabs
@@ -267,6 +274,7 @@ class MainWindow(QMainWindow):
             (self.present_tab,     '✅  الحاضرون',   ['admin', 'attendance']),
             (self.search_tab,      '🔍  البحث',      ['admin', 'attendance', 'data_entry', 'viewer']),
             (self.nutrition_tab,   '🍽  التغذية',    ['admin', 'data_entry']),
+            (self.distribution_tab,'⚡  التوزيع الذكي',['admin', 'data_entry']),
             (self.visits_tab,      '🚪  الزيارات',   ['admin', 'data_entry']),
             (self.qat_tab,         '🌿  القات',      ['admin', 'data_entry']),
             (self.departments_tab, '🏢  الأقسام',    ['admin']),
@@ -296,11 +304,41 @@ class MainWindow(QMainWindow):
         widget = self.tab_widget.widget(index)
         if hasattr(widget, 'refresh'):
             widget.refresh()
-        # Update badges when switching to attendance or visits
-        att_idx = self._tab_index.get('AttendanceTab', -1)
-        vis_idx = self._tab_index.get('VisitsTab', -1)
-        if index in (att_idx, vis_idx):
-            self._update_badges()
+        self._update_badges()
+
+    def _auto_refresh(self):
+        """تحديث تلقائي كل 30 ثانية: الشارات + التبويب الحالي"""
+        self._update_badges()
+        widget = self.tab_widget.currentWidget()
+        if widget and hasattr(widget, 'refresh'):
+            widget.refresh()
+
+    def _on_attendance_changed(self):
+        """يُستدعى بعد أي تغيير في الحضور → يحدّث dashboard + present + distribution"""
+        self._update_badges()
+        if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'refresh'):
+            self.dashboard_tab.refresh()
+        if hasattr(self, 'present_tab') and hasattr(self.present_tab, 'refresh'):
+            self.present_tab.refresh()
+        # distribution_tab يقرأ الحضور الحي عند الضغط على احسب – لا حاجة لتحديثه
+
+    def _on_nutrition_changed(self):
+        """يُستدعى بعد أي تغيير في التغذية → يحدّث dashboard + present"""
+        self._update_badges()
+        if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'refresh'):
+            self.dashboard_tab.refresh()
+        if hasattr(self, 'present_tab') and hasattr(self.present_tab, 'refresh'):
+            self.present_tab.refresh()
+
+    def _on_qat_changed(self):
+        """يُستدعى بعد أي تغيير في القات → يحدّث present + attendance"""
+        self._update_badges()
+        if hasattr(self, 'present_tab') and hasattr(self.present_tab, 'refresh'):
+            self.present_tab.refresh()
+        if hasattr(self, 'attendance_tab') and hasattr(self.attendance_tab, 'load_attendance'):
+            self.attendance_tab.load_attendance()
+        if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'refresh'):
+            self.dashboard_tab.refresh()
 
     def _update_badges(self):
         """تحديث شارات التبويبات بأعداد المهام المعلقة"""
