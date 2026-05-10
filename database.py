@@ -6,8 +6,17 @@ Employee Management System Database
 import sqlite3
 from datetime import datetime
 import os
+import sys
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'employee_system.db')
+# When running as a PyInstaller one-file bundle, __file__ points to a temp
+# extraction folder that is deleted on exit. Use sys.executable (the real binary
+# path) so the DB always lives next to the executable.
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DB_PATH = os.path.join(_BASE_DIR, 'employee_system.db')
 
 
 class Database:
