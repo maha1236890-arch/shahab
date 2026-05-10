@@ -259,32 +259,70 @@ class PresentTab(QWidget):
 
     def _pdf_present(self):
         from datetime import datetime
-        date_str, headers, rows = self._get_present_data()
-        rows_html = ''.join(
-            f'<tr>{"".join(f"<td>{c}</td>" for c in r)}</tr>' for r in rows
-        )
+        date_str = self.date_edit.date().toString('yyyy-MM-dd')
+        present  = self.db.get_present_employees(date_str)
+
+        # تجميع حسب القسم
+        dept_map = {}
+        for emp in present:
+            dept = emp['department'] or 'غير محدد'
+            dept_map.setdefault(dept, []).append(emp)
+
+        DEPT_COLORS_HEX = ['#1F6FEB', '#238636', '#9E6A03', '#8250DF',
+                            '#DA3633', '#0CA4A5', '#E3B341', '#F78166']
+
+        dept_sections_html = ''
+        for i, (dept, emps) in enumerate(sorted(dept_map.items())):
+            color = DEPT_COLORS_HEX[i % len(DEPT_COLORS_HEX)]
+            rows_html = ''.join(
+                f'<tr><td>{e["real_name"]}</td><td>{e["code"]}</td>'
+                f'<td>{e["job_name"]}</td>'
+                f'<td>{(e["time_in"] if "time_in" in e.keys() else "") or ""}</td></tr>'
+                for e in emps
+            )
+            dept_sections_html += (
+                f'<div class="dept-hdr" style="background:{color};">'
+                f'{dept}  —  {len(emps)} موظف</div>'
+                f'<table><tr>'
+                f'<th>الاسم</th><th>الكود</th><th>الاسم الوظيفي</th><th>وقت الحضور</th>'
+                f'</tr>{rows_html}</table><br>'
+            )
+
+        total = sum(len(v) for v in dept_map.values())
         html = (
             '<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>'
             'body{font-family:Arial,Tahoma;font-size:11pt;margin:15px;}'
-            '.h{text-align:center;border-bottom:4px solid #3fb950;padding-bottom:8px;margin-bottom:12px;}'
+            '.h{text-align:center;border-bottom:4px solid #3fb950;padding-bottom:8px;margin-bottom:16px;}'
             '.h h1{color:#3fb950;font-size:17pt;margin:0;}'
-            'table{width:100%;border-collapse:collapse;}'
-            'th{background:#238636;color:#fff;padding:7px;text-align:right;}'
+            '.dept-hdr{color:#fff;font-weight:bold;font-size:13pt;padding:6px 10px;'
+            'border-radius:4px;margin-bottom:4px;margin-top:10px;}'
+            'table{width:100%;border-collapse:collapse;margin-bottom:6px;}'
+            'th{background:#2d333b;color:#fff;padding:6px;text-align:right;}'
             'td{padding:5px 8px;border:1px solid #ddd;text-align:right;}'
             'tr:nth-child(even){background:#f5f5f5;}'
             '</style></head><body>'
-            f'<div class="h"><h1>✅ الموظفون الحاضرون</h1><p>{date_str}</p></div>'
-            f'<table><tr>{"".join(f"<th>{h}</th>" for h in headers)}</tr>'
-            f'{rows_html}</table>'
+            f'<div class="h"><h1>✅ الموظفون الحاضرون</h1>'
+            f'<p>{date_str}  —  الإجمالي: {total} موظف</p></div>'
+            f'{dept_sections_html}'
             f'<div style="text-align:center;color:#888;font-size:9pt;margin-top:14px;">'
             f'طُبع في {datetime.now().strftime("%Y/%m/%d %H:%M")}</div></body></html>'
         )
         export_utils.save_as_pdf(self, html, f'حاضرون_{date_str}.pdf')
 
     def _excel_present(self):
-        date_str, headers, rows = self._get_present_data()
-        export_utils.save_as_excel(self, headers, rows, f'حاضرون_{date_str}.xlsx',
-                                   sheet_title=f'حاضرون {date_str}')
+        date_str = self.date_edit.date().toString('yyyy-MM-dd')
+        present  = self.db.get_present_employees(date_str)
+
+        # تجميع حسب القسم (مرتب أبجدياً)
+        dept_map = {}
+        for emp in present:
+            dept = emp['department'] or 'غير محدد'
+            dept_map.setdefault(dept, []).append(emp)
+
+        export_utils.save_grouped_excel(
+            self, dept_map, date_str,
+            default_name=f'حاضرون_{date_str}.xlsx'
+        )
 
     def refresh(self):
         date_str = self.date_edit.date().toString('yyyy-MM-dd')
