@@ -121,6 +121,23 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_reports_date ON archived_reports(report_date);
                 CREATE INDEX IF NOT EXISTS idx_reports_type ON archived_reports(report_type);
 
+                CREATE TABLE IF NOT EXISTS exit_permits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    employee_id INTEGER,
+                    job_name TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    department TEXT DEFAULT '',
+                    exit_date TEXT NOT NULL,
+                    exit_time TEXT NOT NULL,
+                    reason TEXT DEFAULT '',
+                    driver_name TEXT DEFAULT '',
+                    vehicle_type TEXT DEFAULT 'سيارة',
+                    permit_date TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_exit_permits_date ON exit_permits(exit_date);
+
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT NOT NULL UNIQUE,
@@ -343,6 +360,54 @@ class Database:
                 WHERE v.date=? AND (v.exit_time IS NULL OR v.exit_time='')
                 ORDER BY v.entry_time DESC
             ''', (date,)).fetchall()
+
+    # ===== EXIT PERMITS =====
+    def add_exit_permit(self, data: dict) -> int:
+        with self.get_connection() as conn:
+            cur = conn.execute('''
+                INSERT INTO exit_permits
+                    (employee_id, job_name, code, department,
+                     exit_date, exit_time, reason,
+                     driver_name, vehicle_type, permit_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data.get('employee_id'),
+                data['job_name'],
+                data['code'],
+                data.get('department', ''),
+                data['exit_date'],
+                data['exit_time'],
+                data.get('reason', ''),
+                data.get('driver_name', ''),
+                data.get('vehicle_type', 'سيارة'),
+                data['permit_date'],
+            ))
+            return cur.lastrowid
+
+    def get_exit_permit(self, permit_id: int):
+        with self.get_connection() as conn:
+            return conn.execute(
+                'SELECT * FROM exit_permits WHERE id=?', (permit_id,)
+            ).fetchone()
+
+    def get_exit_permits_by_date(self, date: str):
+        with self.get_connection() as conn:
+            return conn.execute(
+                'SELECT * FROM exit_permits WHERE exit_date=? ORDER BY id DESC',
+                (date,)
+            ).fetchall()
+
+    def get_exit_permits_range(self, date_from: str, date_to: str):
+        with self.get_connection() as conn:
+            return conn.execute('''
+                SELECT * FROM exit_permits
+                WHERE exit_date BETWEEN ? AND ?
+                ORDER BY exit_date DESC, id DESC
+            ''', (date_from, date_to)).fetchall()
+
+    def delete_exit_permit(self, permit_id: int):
+        with self.get_connection() as conn:
+            conn.execute('DELETE FROM exit_permits WHERE id=?', (permit_id,))
 
     # ===== QAT =====
     def add_qat_record(self, employee_id, date, function_name, count, lighter_count):

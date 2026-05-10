@@ -48,6 +48,7 @@ a = Analysis(
         'tabs.visits_tab',
         'tabs.qat_tab',
         'tabs.distribution_tab',
+        'tabs.exit_permit_tab',
         'tabs.departments_tab',
         'tabs.reports_tab',
         'tabs.users_tab',

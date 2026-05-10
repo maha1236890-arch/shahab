@@ -28,6 +28,7 @@ from tabs.nutrition_tab import NutritionTab
 from tabs.distribution_tab import DistributionTab
 from tabs.visits_tab import VisitsTab
 from tabs.qat_tab import QatTab
+from tabs.exit_permit_tab import ExitPermitTab
 from tabs.departments_tab import DepartmentsTab
 from tabs.reports_tab import ReportsTab
 from tabs.users_tab import UsersTab
@@ -248,8 +249,9 @@ class MainWindow(QMainWindow):
         self.search_tab     = SearchTab(self.db)
         self.nutrition_tab  = NutritionTab(self.db)
         self.distribution_tab = DistributionTab(self.db)
-        self.visits_tab     = VisitsTab(self.db)
-        self.qat_tab        = QatTab(self.db)
+        self.visits_tab      = VisitsTab(self.db)
+        self.qat_tab         = QatTab(self.db)
+        self.exit_permit_tab = ExitPermitTab(self.db)
         self.departments_tab = DepartmentsTab(self.db)
         self.reports_tab    = ReportsTab(self.db)
         self.users_tab      = UsersTab(self.db, self.current_user)
@@ -262,6 +264,7 @@ class MainWindow(QMainWindow):
         self.nutrition_tab.data_changed.connect(self._on_nutrition_changed)
         self.qat_tab.data_changed.connect(self._on_qat_changed)
         self.distribution_tab.data_changed.connect(self._on_distribution_changed)
+        self.exit_permit_tab.data_changed.connect(self._update_badges)
 
         # Tabs visible per role:
         # admin:       all tabs
@@ -276,8 +279,9 @@ class MainWindow(QMainWindow):
             (self.search_tab,      '🔍  البحث',      ['admin', 'attendance', 'data_entry', 'viewer']),
             (self.nutrition_tab,   '🍽  التغذية',    ['admin', 'data_entry']),
             (self.distribution_tab,'⚡  التوزيع الذكي',['admin', 'data_entry']),
-            (self.visits_tab,      '🚪  الزيارات',   ['admin', 'data_entry']),
-            (self.qat_tab,         '🌿  القات',      ['admin', 'data_entry']),
+            (self.visits_tab,      '🚪  الزيارات',        ['admin', 'data_entry']),
+            (self.qat_tab,         '🌿  القات',           ['admin', 'data_entry']),
+            (self.exit_permit_tab, '🚗  تصاريح الخروج',   ['admin', 'data_entry']),
             (self.departments_tab, '🏢  الأقسام',    ['admin']),
             (self.reports_tab,     '📊  التقارير',   ['admin', 'attendance', 'viewer']),
             (self.users_tab,       '⚙️  المستخدمون', ['admin']),
