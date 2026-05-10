@@ -14,6 +14,10 @@ a = Analysis(
     datas=[
         # Include tabs package
         ('tabs/*.py', 'tabs'),
+        # Application icon
+        ('app_icon.png', '.'),
+        # Install script and icon for desktop shortcut
+        ('install_linux.py', '.'),
     ],
     hiddenimports=[
         # PyQt5 essentials
@@ -45,6 +49,8 @@ a = Analysis(
         'tabs.qat_tab',
         'tabs.departments_tab',
         'tabs.reports_tab',
+        'tabs.users_tab',
+        'login_dialog',
     ],
     hookspath=[],
     hooksconfig={},
@@ -87,5 +93,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    # icon='icon.ico',      # Uncomment and set path if you have an icon file
+    icon='app_icon.ico',
 )
