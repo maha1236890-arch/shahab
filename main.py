@@ -261,6 +261,7 @@ class MainWindow(QMainWindow):
         self.attendance_tab.data_changed.connect(self._on_attendance_changed)
         self.nutrition_tab.data_changed.connect(self._on_nutrition_changed)
         self.qat_tab.data_changed.connect(self._on_qat_changed)
+        self.distribution_tab.data_changed.connect(self._on_distribution_changed)
 
         # Tabs visible per role:
         # admin:       all tabs
@@ -320,7 +321,8 @@ class MainWindow(QMainWindow):
             self.dashboard_tab.refresh()
         if hasattr(self, 'present_tab') and hasattr(self.present_tab, 'refresh'):
             self.present_tab.refresh()
-        # distribution_tab يقرأ الحضور الحي عند الضغط على احسب – لا حاجة لتحديثه
+        if hasattr(self, 'distribution_tab') and hasattr(self.distribution_tab, 'refresh'):
+            self.distribution_tab.refresh()
 
     def _on_nutrition_changed(self):
         """يُستدعى بعد أي تغيير في التغذية → يحدّث dashboard + present"""
@@ -337,6 +339,16 @@ class MainWindow(QMainWindow):
             self.present_tab.refresh()
         if hasattr(self, 'attendance_tab') and hasattr(self.attendance_tab, 'load_attendance'):
             self.attendance_tab.load_attendance()
+        if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'refresh'):
+            self.dashboard_tab.refresh()
+
+    def _on_distribution_changed(self):
+        """يُستدعى بعد حفظ التوزيع الذكي → يحدّث nutrition + present + dashboard"""
+        self._update_badges()
+        if hasattr(self, 'nutrition_tab') and hasattr(self.nutrition_tab, 'refresh'):
+            self.nutrition_tab.refresh()
+        if hasattr(self, 'present_tab') and hasattr(self.present_tab, 'refresh'):
+            self.present_tab.refresh()
         if hasattr(self, 'dashboard_tab') and hasattr(self.dashboard_tab, 'refresh'):
             self.dashboard_tab.refresh()
 

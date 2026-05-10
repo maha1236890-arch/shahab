@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QFrame, QMessageBox, QScrollArea, QGridLayout,
     QSizePolicy
 )
-from PyQt5.QtCore import Qt, QDate
+from PyQt5.QtCore import Qt, QDate, pyqtSignal
 from PyQt5.QtGui import QColor, QFont
 from datetime import datetime
 
@@ -154,6 +154,8 @@ class DeptResultCard(QFrame):
 
 # ── التبويب الرئيسي ────────────────────────────────────────────────────────────
 class DistributionTab(QWidget):
+    data_changed = pyqtSignal()   # يُطلق بعد حفظ التوزيع
+
     def __init__(self, db):
         super().__init__()
         self.db = db
@@ -433,7 +435,10 @@ class DistributionTab(QWidget):
             'يمكنك مراجعة التفاصيل في تبويب التغذية.'
         )
         self.save_btn.setEnabled(False)
+        self.data_changed.emit()
 
     # ── refresh (يُستدعى عند تفعيل التبويب) ─────────────────────────────────
     def refresh(self):
-        pass  # لا حاجة لإعادة تحميل تلقائية عند التبديل
+        # أعد الحساب تلقائياً إذا كان هناك توزيع محسوب مسبقاً
+        if self._last_distribution:
+            self._calculate()
