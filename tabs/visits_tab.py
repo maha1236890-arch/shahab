@@ -279,6 +279,14 @@ class VisitsTab(QWidget):
             f'✅ تم تسجيل دخول: {self.current_employee["real_name"]}  |  {entry_time}',
             'success'
         )
+        try:
+            main_win = self.window()
+            if hasattr(main_win, 'current_user') and main_win.current_user:
+                u = main_win.current_user
+                self.db.log_action(u['id'], u['username'], 'تسجيل دخول زيارة',
+                                   f'{self.current_employee["real_name"]} - {entry_time}')
+        except Exception:
+            pass
 
         # Auto-print if enabled
         if self.auto_print_chk.isChecked():
@@ -305,6 +313,14 @@ class VisitsTab(QWidget):
 
         name = self.current_employee['real_name'] if self.current_employee else ''
         self._show_toast(f'🔴 تم تسجيل الخروج: {name}  |  {exit_time}', 'info')
+        try:
+            main_win = self.window()
+            if hasattr(main_win, 'current_user') and main_win.current_user:
+                u = main_win.current_user
+                self.db.log_action(u['id'], u['username'], 'تسجيل خروج زيارة',
+                                   f'{name} - {exit_time}')
+        except Exception:
+            pass
 
         # Auto-print if enabled
         if self.auto_print_chk.isChecked():

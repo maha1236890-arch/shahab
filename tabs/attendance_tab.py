@@ -242,15 +242,19 @@ class AttendanceTab(QWidget):
         time_in = datetime.now().strftime('%H:%M') if status == 'حاضر' else None
         self.db.mark_attendance(employee_id, date_str, status, time_in)
         self.load_attendance()
-        # Show toast notification
+        # Show toast notification and log
         try:
             main_win = self.window()
+            emp = self.db.get_employee_by_id(employee_id)
+            name = emp['real_name'] if emp else str(employee_id)
             if hasattr(main_win, 'show_toast'):
-                emp = self.db.get_employee_by_id(employee_id)
-                name = emp['real_name'] if emp else ''
                 t = 'success' if status == 'حاضر' else 'warning'
                 main_win.show_toast(f'{status}: {name}', t)
                 main_win._update_badges()
+            if hasattr(main_win, 'current_user') and main_win.current_user:
+                u = main_win.current_user
+                self.db.log_action(u['id'], u['username'], f'تسجيل {status}',
+                                   f'{name} - {date_str}')
         except Exception:
             pass
 
@@ -265,6 +269,9 @@ class AttendanceTab(QWidget):
             if hasattr(main_win, 'show_toast'):
                 main_win.show_toast('تم تسجيل حضور جميع الموظفين', 'success')
                 main_win._update_badges()
+            if hasattr(main_win, 'current_user') and main_win.current_user:
+                u = main_win.current_user
+                self.db.log_action(u['id'], u['username'], 'تسجيل حضور الكل', date_str)
         except Exception:
             pass
 
@@ -283,6 +290,9 @@ class AttendanceTab(QWidget):
                 if hasattr(main_win, 'show_toast'):
                     main_win.show_toast('تم تسجيل غياب جميع الموظفين', 'warning')
                     main_win._update_badges()
+                if hasattr(main_win, 'current_user') and main_win.current_user:
+                    u = main_win.current_user
+                    self.db.log_action(u['id'], u['username'], 'تسجيل غياب الكل', date_str)
             except Exception:
                 pass
 

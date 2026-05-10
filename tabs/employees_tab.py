@@ -278,6 +278,14 @@ class EmployeesTab(QWidget):
                 self.db.add_employee(dialog.get_data())
                 self.load_employees()
                 QMessageBox.information(self, '✅ نجاح', 'تم إضافة الموظف بنجاح')
+                try:
+                    main_win = self.window()
+                    if hasattr(main_win, 'current_user') and main_win.current_user:
+                        u = main_win.current_user
+                        self.db.log_action(u['id'], u['username'], 'إضافة موظف',
+                                           dialog.get_data().get('code', ''))
+                except Exception:
+                    pass
             except Exception as e:
                 if 'UNIQUE' in str(e):
                     QMessageBox.warning(self, '❌ خطأ', 'هذا الكود مستخدم مسبقاً، الرجاء استخدام كود آخر')
@@ -296,6 +304,14 @@ class EmployeesTab(QWidget):
                 self.db.update_employee(emp_id, dialog.get_data())
                 self.load_employees()
                 QMessageBox.information(self, '✅ نجاح', 'تم تعديل بيانات الموظف بنجاح')
+                try:
+                    main_win = self.window()
+                    if hasattr(main_win, 'current_user') and main_win.current_user:
+                        u = main_win.current_user
+                        self.db.log_action(u['id'], u['username'], 'تعديل موظف',
+                                           f'ID: {emp_id}')
+                except Exception:
+                    pass
             except Exception as e:
                 if 'UNIQUE' in str(e):
                     QMessageBox.warning(self, '❌ خطأ', 'هذا الكود مستخدم مسبقاً')
@@ -317,6 +333,14 @@ class EmployeesTab(QWidget):
         if reply == QMessageBox.Yes:
             self.db.delete_employee(emp_id)
             self.load_employees()
+            try:
+                main_win = self.window()
+                if hasattr(main_win, 'current_user') and main_win.current_user:
+                    u = main_win.current_user
+                    self.db.log_action(u['id'], u['username'], 'حذف موظف',
+                                       f'{name} (ID: {emp_id})')
+            except Exception:
+                pass
 
     def refresh(self):
         self.load_employees()

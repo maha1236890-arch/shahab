@@ -105,7 +105,40 @@ class Database:
                 );
                 CREATE INDEX IF NOT EXISTS idx_reports_date ON archived_reports(report_date);
                 CREATE INDEX IF NOT EXISTS idx_reports_type ON archived_reports(report_type);
+
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password TEXT NOT NULL,
+                    full_name TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'data_entry',
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    last_login DATETIME
+                );
+
+                CREATE TABLE IF NOT EXISTS activity_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    username TEXT,
+                    action TEXT NOT NULL,
+                    details TEXT DEFAULT '',
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_log_timestamp ON activity_log(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_log_user ON activity_log(user_id);
             ''')
+        # Create default admin if no users exist
+        self._ensure_default_admin()
+
+    def _ensure_default_admin(self):
+        with self.get_connection() as conn:
+            count = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+            if count == 0:
+                conn.execute('''
+                    INSERT INTO users (username, password, full_name, role)
+                    VALUES (?, ?, ?, ?)
+                ''', ('admin', 'admin123', 'مدير النظام', 'admin'))
 
     def insert_sample_data(self):
         with self.get_connection() as conn:
@@ -428,3 +461,72 @@ class Database:
                     result[dept] = []
                 result[dept].append(dict(r))
             return result
+
+    # ===== USERS =====
+    def get_user_by_credentials(self, username, password):
+        with self.get_connection() as conn:
+            return conn.execute(
+                'SELECT * FROM users WHERE username=? AND password=? AND is_active=1',
+                (username, password)
+            ).fetchone()
+
+    def update_last_login(self, user_id):
+        with self.get_connection() as conn:
+            conn.execute(
+                'UPDATE users SET last_login=? WHERE id=?',
+                (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), user_id)
+            )
+
+    def get_all_users(self):
+        with self.get_connection() as conn:
+            return conn.execute(
+                'SELECT * FROM users ORDER BY role, username'
+            ).fetchall()
+
+    def add_user(self, username, password, full_name, role):
+        with self.get_connection() as conn:
+            conn.execute(
+                'INSERT INTO users (username, password, full_name, role) VALUES (?,?,?,?)',
+                (username, password, full_name, role)
+            )
+
+    def update_user(self, user_id, full_name, role, is_active, password=None):
+        with self.get_connection() as conn:
+            if password:
+                conn.execute(
+                    'UPDATE users SET full_name=?, role=?, is_active=?, password=? WHERE id=?',
+                    (full_name, role, is_active, password, user_id)
+                )
+            else:
+                conn.execute(
+                    'UPDATE users SET full_name=?, role=?, is_active=? WHERE id=?',
+                    (full_name, role, is_active, user_id)
+                )
+
+    def delete_user(self, user_id):
+        with self.get_connection() as conn:
+            conn.execute('DELETE FROM users WHERE id=?', (user_id,))
+
+    def change_password(self, user_id, new_password):
+        with self.get_connection() as conn:
+            conn.execute('UPDATE users SET password=? WHERE id=?', (new_password, user_id))
+
+    # ===== ACTIVITY LOG =====
+    def log_action(self, user_id, username, action, details=''):
+        with self.get_connection() as conn:
+            conn.execute(
+                'INSERT INTO activity_log (user_id, username, action, details) VALUES (?,?,?,?)',
+                (user_id, username, action, details)
+            )
+
+    def get_activity_log(self, limit=200, user_id=None):
+        with self.get_connection() as conn:
+            if user_id:
+                return conn.execute(
+                    'SELECT * FROM activity_log WHERE user_id=? ORDER BY timestamp DESC LIMIT ?',
+                    (user_id, limit)
+                ).fetchall()
+            return conn.execute(
+                'SELECT * FROM activity_log ORDER BY timestamp DESC LIMIT ?',
+                (limit,)
+            ).fetchall()

@@ -29,6 +29,8 @@ from tabs.visits_tab import VisitsTab
 from tabs.qat_tab import QatTab
 from tabs.departments_tab import DepartmentsTab
 from tabs.reports_tab import ReportsTab
+from tabs.users_tab import UsersTab
+from login_dialog import LoginDialog
 
 
 DAYS_AR = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد']
@@ -94,9 +96,10 @@ class ToastNotification(QFrame):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, current_user):
         super().__init__()
         self.db = Database()
+        self.current_user = current_user
         self.setWindowTitle('نظام إدارة الموظفين')
         self.setMinimumSize(1280, 800)
         self.setLayoutDirection(Qt.RightToLeft)
@@ -183,8 +186,49 @@ class MainWindow(QMainWindow):
         layout.addWidget(version)
         layout.addWidget(QLabel('|'))
         layout.addWidget(self.clock_label)
+        layout.addWidget(QLabel('|'))
+
+        # Role badge
+        role_labels = {
+            'admin': ('مدير النظام', '#f0883e'),
+            'attendance': ('مسؤول الحضور', '#58a6ff'),
+            'data_entry': ('إدخال بيانات', '#3fb950'),
+            'viewer': ('مشاهد', '#8b949e'),
+        }
+        role_text, role_color = role_labels.get(
+            self.current_user.get('role', ''), ('مستخدم', '#8b949e')
+        )
+        role_lbl = QLabel(role_text)
+        role_lbl.setStyleSheet(
+            f'font-size: 11px; color: {role_color}; background: transparent; font-weight: bold;'
+        )
+
+        user_lbl = QLabel(f'👤 {self.current_user.get("full_name", self.current_user.get("username",""))}')
+        user_lbl.setStyleSheet('font-size: 13px; color: #c9d1d9; background: transparent;')
+
+        from PyQt5.QtWidgets import QPushButton
+        logout_btn = QPushButton('🚪 خروج')
+        logout_btn.setFixedHeight(32)
+        logout_btn.setStyleSheet('''
+            QPushButton {
+                background: #21262d; color: #f85149; border: 1px solid #f85149;
+                border-radius: 6px; padding: 2px 12px; font-size: 12px; font-weight: bold;
+            }
+            QPushButton:hover { background: #2d0f0f; }
+        ''')
+        logout_btn.clicked.connect(self._logout)
+
+        layout.addWidget(role_lbl)
+        layout.addWidget(user_lbl)
+        layout.addWidget(logout_btn)
 
         return frame
+
+    def _logout(self):
+        self.db.log_action(self.current_user['id'], self.current_user['username'],
+                           'تسجيل خروج', '')
+        QApplication.instance().setProperty('logout_requested', True)
+        self.close()
 
     def _update_clock(self):
         now = datetime.now()
@@ -194,6 +238,8 @@ class MainWindow(QMainWindow):
         )
 
     def _build_tabs(self):
+        role = self.current_user.get('role', 'data_entry')
+
         self.dashboard_tab  = DashboardTab(self.db)
         self.employees_tab  = EmployeesTab(self.db)
         self.attendance_tab = AttendanceTab(self.db)
@@ -204,25 +250,40 @@ class MainWindow(QMainWindow):
         self.qat_tab        = QatTab(self.db)
         self.departments_tab = DepartmentsTab(self.db)
         self.reports_tab    = ReportsTab(self.db)
+        self.users_tab      = UsersTab(self.db, self.current_user)
 
         # Connect dashboard "quick action" click → switch tab
         self.dashboard_tab.switch_to_tab.connect(self.tab_widget.setCurrentIndex)
 
-        self._tabs = [
-            (self.dashboard_tab,   '🏠  الرئيسية'),
-            (self.employees_tab,   '👥  الموظفون'),
-            (self.attendance_tab,  '📋  الحضور'),
-            (self.present_tab,     '✅  الحاضرون'),
-            (self.search_tab,      '🔍  البحث'),
-            (self.nutrition_tab,   '🍽  التغذية'),
-            (self.visits_tab,      '🚪  الزيارات'),
-            (self.qat_tab,         '🌿  القات'),
-            (self.departments_tab, '🏢  الأقسام'),
-            (self.reports_tab,     '📊  التقارير'),
+        # Tabs visible per role:
+        # admin:       all tabs
+        # attendance:  dashboard, attendance, present, search, reports
+        # data_entry:  dashboard, employees, attendance, search, nutrition, visits, qat
+        # viewer:      dashboard, search, reports
+        all_tabs = [
+            (self.dashboard_tab,   '🏠  الرئيسية',  ['admin', 'attendance', 'data_entry', 'viewer']),
+            (self.employees_tab,   '👥  الموظفون',   ['admin', 'data_entry']),
+            (self.attendance_tab,  '📋  الحضور',     ['admin', 'attendance', 'data_entry']),
+            (self.present_tab,     '✅  الحاضرون',   ['admin', 'attendance']),
+            (self.search_tab,      '🔍  البحث',      ['admin', 'attendance', 'data_entry', 'viewer']),
+            (self.nutrition_tab,   '🍽  التغذية',    ['admin', 'data_entry']),
+            (self.visits_tab,      '🚪  الزيارات',   ['admin', 'data_entry']),
+            (self.qat_tab,         '🌿  القات',      ['admin', 'data_entry']),
+            (self.departments_tab, '🏢  الأقسام',    ['admin']),
+            (self.reports_tab,     '📊  التقارير',   ['admin', 'attendance', 'viewer']),
+            (self.users_tab,       '⚙️  المستخدمون', ['admin']),
         ]
 
-        for widget, label in self._tabs:
-            self.tab_widget.addTab(widget, label)
+        self._tabs = []
+        for widget, label, allowed_roles in all_tabs:
+            if role in allowed_roles:
+                self.tab_widget.addTab(widget, label)
+                self._tabs.append((widget, label))
+
+        # Store tab index mapping for badge updates
+        self._tab_index = {}
+        for i, (widget, _) in enumerate(self._tabs):
+            self._tab_index[type(widget).__name__] = i
 
     def _build_statusbar(self):
         status = self.statusBar()
@@ -236,7 +297,9 @@ class MainWindow(QMainWindow):
         if hasattr(widget, 'refresh'):
             widget.refresh()
         # Update badges when switching to attendance or visits
-        if index in (2, 6):
+        att_idx = self._tab_index.get('AttendanceTab', -1)
+        vis_idx = self._tab_index.get('VisitsTab', -1)
+        if index in (att_idx, vis_idx):
             self._update_badges()
 
     def _update_badges(self):
@@ -255,16 +318,16 @@ class MainWindow(QMainWindow):
             n_open = len(open_visits)
 
             # Attendance tab badge
-            att_label = f'📋  الحضور'
-            if unrecorded > 0:
-                att_label = f'📋  الحضور ({unrecorded})'
-            self.tab_widget.setTabText(2, att_label)
+            att_idx = self._tab_index.get('AttendanceTab', -1)
+            if att_idx >= 0:
+                att_label = f'📋  الحضور ({unrecorded})' if unrecorded > 0 else '📋  الحضور'
+                self.tab_widget.setTabText(att_idx, att_label)
 
             # Visits tab badge
-            vis_label = f'🚪  الزيارات'
-            if n_open > 0:
-                vis_label = f'🚪  الزيارات ({n_open})'
-            self.tab_widget.setTabText(6, vis_label)
+            vis_idx = self._tab_index.get('VisitsTab', -1)
+            if vis_idx >= 0:
+                vis_label = f'🚪  الزيارات ({n_open})' if n_open > 0 else '🚪  الزيارات'
+                self.tab_widget.setTabText(vis_idx, vis_label)
         except Exception:
             pass
 
@@ -292,21 +355,25 @@ def main():
     font.setPointSize(11)
     app.setFont(font)
 
-    window = MainWindow()
-    window.showMaximized()
-    window.show()
+    db = Database.get_instance()
 
-    sys.exit(app.exec_())
+    while True:
+        app.setProperty('logout_requested', False)
+        login = LoginDialog(db)
+        login.exec_()
+        if login.current_user is None:
+            # User closed login dialog without logging in
+            break
+        window = MainWindow(login.current_user)
+        window.showMaximized()
+        window.show()
+        app.exec_()
+        if not app.property('logout_requested'):
+            break
 
 
 if __name__ == '__main__':
     main()
-
-    app.setFont(font)
-
-    window = MainWindow()
-    window.showMaximized()
-    window.show()
 
     sys.exit(app.exec_())
 
