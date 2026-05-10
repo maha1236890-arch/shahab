@@ -5,7 +5,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem,
     QPushButton, QLabel, QFrame, QDateEdit, QHeaderView, QAbstractItemView,
-    QMessageBox
+    QMessageBox, QTabWidget
 )
 from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QColor, QFont
@@ -61,7 +61,7 @@ class AttendanceTab(QWidget):
         layout.setSpacing(10)
         layout.setContentsMargins(10, 10, 10, 10)
 
-        # Toolbar
+        # ── Toolbar ──
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
 
@@ -118,16 +118,16 @@ class AttendanceTab(QWidget):
         toolbar.addWidget(excel_btn)
         layout.addLayout(toolbar)
 
-        # Stats cards
+        # ── Stats Cards ──
         stats_frame = QFrame()
         stats_frame.setObjectName('card')
         stats_layout = QHBoxLayout(stats_frame)
         stats_layout.setSpacing(10)
 
-        self.card_present = StatCard('الحاضرون', '0', '#3fb950', '✅')
-        self.card_absent = StatCard('الغائبون', '0', '#f85149', '❌')
-        self.card_total = StatCard('إجمالي الموظفين', '0', '#58a6ff', '👥')
-        self.card_unrecorded = StatCard('غير مسجل', '0', '#d29922', '⏳')
+        self.card_present    = StatCard('الحاضرون',        '0', '#3fb950', '✅')
+        self.card_absent     = StatCard('الغائبون',        '0', '#f85149', '❌')
+        self.card_total      = StatCard('إجمالي الموظفين', '0', '#58a6ff', '👥')
+        self.card_unrecorded = StatCard('غير مسجل',        '0', '#d29922', '⏳')
 
         stats_layout.addWidget(self.card_present)
         stats_layout.addWidget(self.card_absent)
@@ -135,23 +135,17 @@ class AttendanceTab(QWidget):
         stats_layout.addWidget(self.card_unrecorded)
         layout.addWidget(stats_frame)
 
-        # Table
-        self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels([
-            'الرقم', 'الكود', 'الاسم الوظيفي', 'القسم', 'الحالة', 'الإجراءات'
-        ])
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        hdr = self.table.horizontalHeader()
-        hdr.setSectionResizeMode(QHeaderView.Stretch)
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        hdr.setSectionResizeMode(5, QHeaderView.Fixed)
-        self.table.setColumnWidth(5, 160)
-        self.table.setShowGrid(False)
-        self.table.verticalHeader().setDefaultSectionSize(40)
-        layout.addWidget(self.table)
+        # ── Department Tabs ──
+        self.dept_tabs = QTabWidget()
+        self.dept_tabs.setStyleSheet('''
+            QTabWidget::pane { border: 1px solid #30363d; border-radius: 6px;
+                               background: #0d1117; }
+            QTabBar::tab { background: #21262d; color: #8b949e; padding: 8px 18px;
+                           border-radius: 4px; margin-right: 3px; font-size: 13px; }
+            QTabBar::tab:selected { background: #1f6feb; color: #ffffff; font-weight: bold; }
+            QTabBar::tab:hover:!selected { background: #30363d; color: #e6edf3; }
+        ''')
+        layout.addWidget(self.dept_tabs)
 
     def _get_date(self):
         return self.date_edit.date().toString('yyyy-MM-dd')
@@ -161,61 +155,143 @@ class AttendanceTab(QWidget):
 
     def load_attendance(self):
         date_str = self._get_date()
-        employees = self.db.get_all_employees()
-        att_map = {row['employee_id']: row for row in self.db.get_attendance_by_date(date_str)}
 
+        # Global stats
         present, absent, total = self.db.get_attendance_stats(date_str)
         self.card_present.set_value(present)
         self.card_absent.set_value(absent)
         self.card_total.set_value(total)
         self.card_unrecorded.set_value(total - present - absent)
 
-        self.table.setRowCount(len(employees))
-        for row, emp in enumerate(employees):
-            emp_id = emp['id']
-            att = att_map.get(emp_id)
+        # All employees grouped by department (LEFT JOIN to attendance)
+        dept_data = self.db.get_attendance_by_dept(date_str)
 
-            for col, val in enumerate([
-                str(emp['id']), emp['code'],
-                emp['job_name'], emp['department'] or ''
-            ]):
+        # Preserve active tab
+        current_idx = self.dept_tabs.currentIndex()
+        self.dept_tabs.blockSignals(True)
+        self.dept_tabs.clear()
+
+        for dept, employees in dept_data.items():
+            widget = self._build_dept_widget(employees)
+            present_in_dept = sum(1 for e in employees if e['status'] == 'حاضر')
+            tab_label = f'🏢 {dept}  ({present_in_dept}/{len(employees)})'
+            self.dept_tabs.addTab(widget, tab_label)
+
+        self.dept_tabs.blockSignals(False)
+
+        if 0 <= current_idx < self.dept_tabs.count():
+            self.dept_tabs.setCurrentIndex(current_idx)
+
+    def _build_dept_widget(self, employees):
+        """بناء widget لعرض موظفي قسم واحد"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(6)
+        layout.setContentsMargins(8, 8, 8, 8)
+
+        # Dept mini-stats + per-dept action buttons
+        present_count    = sum(1 for e in employees if e['status'] == 'حاضر')
+        absent_count     = sum(1 for e in employees if e['status'] == 'غائب')
+        unrecorded_count = len(employees) - present_count - absent_count
+
+        top_row = QHBoxLayout()
+        stats_lbl = QLabel(
+            f'✅ حاضر: <b style="color:#3fb950">{present_count}</b>'
+            f'   ❌ غائب: <b style="color:#f85149">{absent_count}</b>'
+            f'   ⏳ غير مسجل: <b style="color:#d29922">{unrecorded_count}</b>'
+            f'   👥 الإجمالي: <b style="color:#58a6ff">{len(employees)}</b>'
+        )
+        stats_lbl.setTextFormat(Qt.RichText)
+        stats_lbl.setStyleSheet('font-size: 13px; padding: 4px;')
+
+        mark_dept_btn = QPushButton('✅ تحضير القسم')
+        mark_dept_btn.setFixedHeight(32)
+        mark_dept_btn.setStyleSheet(
+            'background-color:#238636; color:white; border-radius:5px;'
+            ' font-weight:bold; padding:0 12px;'
+        )
+        mark_dept_btn.clicked.connect(
+            lambda _, emps=employees: self._mark_dept_all(emps, 'حاضر')
+        )
+
+        absent_dept_btn = QPushButton('❌ تغيب القسم')
+        absent_dept_btn.setFixedHeight(32)
+        absent_dept_btn.setStyleSheet(
+            'background-color:#da3633; color:white; border-radius:5px;'
+            ' font-weight:bold; padding:0 12px;'
+        )
+        absent_dept_btn.clicked.connect(
+            lambda _, emps=employees: self._mark_dept_all(emps, 'غائب')
+        )
+
+        top_row.addWidget(stats_lbl)
+        top_row.addStretch()
+        top_row.addWidget(mark_dept_btn)
+        top_row.addWidget(absent_dept_btn)
+        layout.addLayout(top_row)
+
+        # Table for this department (no القسم column - we're already inside the dept tab)
+        table = QTableWidget()
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(['#', 'الكود', 'الاسم الوظيفي', 'الحالة', 'الإجراءات'])
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        hdr = table.horizontalHeader()
+        hdr.setSectionResizeMode(QHeaderView.Stretch)
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.Fixed)
+        table.setColumnWidth(4, 160)
+        table.setShowGrid(False)
+        table.verticalHeader().setDefaultSectionSize(40)
+
+        table.setRowCount(len(employees))
+        for row, emp in enumerate(employees):
+            emp_id = emp['emp_id']
+            status = emp['status']
+
+            for col, val in enumerate([str(row + 1), emp['code'], emp['job_name']]):
                 item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignCenter)
                 if col == 0:
                     item.setData(Qt.UserRole, emp_id)
-                self.table.setItem(row, col, item)
+                table.setItem(row, col, item)
 
-            # Status
-            if att:
-                status = att['status']
-                status_item = QTableWidgetItem(status)
-                status_item.setTextAlignment(Qt.AlignCenter)
-                if status == 'حاضر':
-                    status_item.setForeground(QColor('#3fb950'))
-                    status_item.setFont(QFont('Arial', 12, QFont.Bold))
-                    self._set_row_bg(row, '#0d2a0d')
-                else:
-                    status_item.setForeground(QColor('#f85149'))
-                    status_item.setFont(QFont('Arial', 12, QFont.Bold))
-                    self._set_row_bg(row, '#2a0d0d')
+            # Status cell
+            if status == 'حاضر':
+                status_item = QTableWidgetItem('✓ حاضر')
+                status_item.setForeground(QColor('#3fb950'))
+                status_item.setFont(QFont('Arial', 12, QFont.Bold))
+                for col in range(4):
+                    it = table.item(row, col)
+                    if it:
+                        it.setBackground(QColor('#0d2a0d'))
+            elif status == 'غائب':
+                status_item = QTableWidgetItem('✗ غائب')
+                status_item.setForeground(QColor('#f85149'))
+                status_item.setFont(QFont('Arial', 12, QFont.Bold))
+                for col in range(4):
+                    it = table.item(row, col)
+                    if it:
+                        it.setBackground(QColor('#2a0d0d'))
             else:
-                status_item = QTableWidgetItem('غير مسجل')
-                status_item.setTextAlignment(Qt.AlignCenter)
+                status_item = QTableWidgetItem('⏳ غير مسجل')
                 status_item.setForeground(QColor('#d29922'))
-            self.table.setItem(row, 5, status_item)
+            status_item.setTextAlignment(Qt.AlignCenter)
+            table.setItem(row, 3, status_item)
 
             # Action buttons
-            btn_widget = QWidget()
-            btn_widget.setStyleSheet('background: transparent;')
-            btn_layout = QHBoxLayout(btn_widget)
-            btn_layout.setContentsMargins(3, 3, 3, 3)
-            btn_layout.setSpacing(4)
+            btn_w = QWidget()
+            btn_w.setStyleSheet('background: transparent;')
+            btn_l = QHBoxLayout(btn_w)
+            btn_l.setContentsMargins(3, 3, 3, 3)
+            btn_l.setSpacing(4)
 
             p_btn = QPushButton('حاضر ✓')
             p_btn.setFixedHeight(28)
             p_btn.setStyleSheet(
                 'background-color:#238636; color:white; border-radius:4px;'
-                'font-size:11px; font-weight:bold; padding:0 6px;'
+                ' font-size:11px; font-weight:bold; padding:0 6px;'
             )
             p_btn.clicked.connect(lambda _, eid=emp_id: self._mark(eid, 'حاضر'))
 
@@ -223,30 +299,29 @@ class AttendanceTab(QWidget):
             a_btn.setFixedHeight(28)
             a_btn.setStyleSheet(
                 'background-color:#da3633; color:white; border-radius:4px;'
-                'font-size:11px; font-weight:bold; padding:0 6px;'
+                ' font-size:11px; font-weight:bold; padding:0 6px;'
             )
             a_btn.clicked.connect(lambda _, eid=emp_id: self._mark(eid, 'غائب'))
 
-            btn_layout.addWidget(p_btn)
-            btn_layout.addWidget(a_btn)
-            self.table.setCellWidget(row, 5, btn_widget)
+            btn_l.addWidget(p_btn)
+            btn_l.addWidget(a_btn)
+            table.setCellWidget(row, 4, btn_w)
 
-    def _set_row_bg(self, row, color):
-        for col in range(5):
-            item = self.table.item(row, col)
-            if item:
-                item.setBackground(QColor(color))
+        layout.addWidget(table)
+        return widget
 
     def _mark(self, employee_id, status):
         date_str = self._get_date()
         time_in = datetime.now().strftime('%H:%M') if status == 'حاضر' else None
         self.db.mark_attendance(employee_id, date_str, status, time_in)
+        current_idx = self.dept_tabs.currentIndex()
         self.load_attendance()
-        # Show toast notification and log
+        if 0 <= current_idx < self.dept_tabs.count():
+            self.dept_tabs.setCurrentIndex(current_idx)
         try:
             main_win = self.window()
             emp = self.db.get_employee_by_id(employee_id)
-            name = emp['real_name'] if emp else str(employee_id)
+            name = emp['job_name'] if emp else str(employee_id)
             if hasattr(main_win, 'show_toast'):
                 t = 'success' if status == 'حاضر' else 'warning'
                 main_win.show_toast(f'{status}: {name}', t)
@@ -255,6 +330,26 @@ class AttendanceTab(QWidget):
                 u = main_win.current_user
                 self.db.log_action(u['id'], u['username'], f'تسجيل {status}',
                                    f'{name} - {date_str}')
+        except Exception:
+            pass
+
+    def _mark_dept_all(self, employees, status):
+        date_str = self._get_date()
+        time_in = datetime.now().strftime('%H:%M') if status == 'حاضر' else None
+        for emp in employees:
+            self.db.mark_attendance(emp['emp_id'], date_str, status, time_in)
+        current_idx = self.dept_tabs.currentIndex()
+        self.load_attendance()
+        if 0 <= current_idx < self.dept_tabs.count():
+            self.dept_tabs.setCurrentIndex(current_idx)
+        try:
+            main_win = self.window()
+            if hasattr(main_win, 'show_toast'):
+                label = 'حضور' if status == 'حاضر' else 'غياب'
+                main_win.show_toast(
+                    f'تم تسجيل {label} القسم', 'success' if status == 'حاضر' else 'warning'
+                )
+                main_win._update_badges()
         except Exception:
             pass
 
@@ -306,15 +401,14 @@ class AttendanceTab(QWidget):
         for emp in all_emps:
             att = att_map.get(emp['id'])
             row = dict(emp)
-            row['status'] = att['status'] if att else 'غير مسجل'
+            row['status']  = att['status']  if att else 'غير مسجل'
             row['time_in'] = att['time_in'] if att else ''
             data.append(row)
-
         printing_utils.print_attendance_report(self, date_str, data)
 
     def _build_report_data(self):
         date_str = self._get_date()
-        att_map  = {r['employee_id']: r for r in self.db.get_attendance_by_date(date_str)}
+        att_map = {r['employee_id']: r for r in self.db.get_attendance_by_date(date_str)}
         data = []
         for emp in self.db.get_all_employees():
             att = att_map.get(emp['id'])

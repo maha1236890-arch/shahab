@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QFrame, QComboBox, QDateEdit, QMessageBox, QSplitter, QTextEdit,
-    QCheckBox
+    QCheckBox, QTabWidget
 )
 from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QColor
@@ -116,7 +116,7 @@ class VisitsTab(QWidget):
             row.addWidget(val, 1)
             return row, val
 
-        r1, self.emp_name = info_row('الاسم')
+        r1, self.emp_name = info_row('المسمى')
         r2, self.emp_code = info_row('الكود')
         r3, self.emp_dept = info_row('القسم')
         r4, self.emp_gov = info_row('المحافظة')
@@ -217,19 +217,16 @@ class VisitsTab(QWidget):
         )
         table_layout.addWidget(table_title)
 
-        self.table = QTableWidget()
-        self.table.setColumnCount(8)
-        self.table.setHorizontalHeaderLabels([
-            'الاسم', 'الكود', 'القسم', 'المحافظة', 'الحالة الاجتماعية', 'نوع الزيارة', 'دخول', 'خروج'
-        ])
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.setShowGrid(False)
-        self.table.verticalHeader().setDefaultSectionSize(36)
-        self.table.clicked.connect(self._on_table_click)
-        table_layout.addWidget(self.table)
+        self.dept_tabs = QTabWidget()
+        self.dept_tabs.setStyleSheet('''
+            QTabWidget::pane { border: 1px solid #30363d; border-radius: 6px;
+                               background: #0d1117; }
+            QTabBar::tab { background: #21262d; color: #8b949e; padding: 8px 16px;
+                           border-radius: 4px; margin-right: 3px; font-size: 13px; }
+            QTabBar::tab:selected { background: #1f6feb; color: #fff; font-weight: bold; }
+            QTabBar::tab:hover:!selected { background: #30363d; color: #e6edf3; }
+        ''')
+        table_layout.addWidget(self.dept_tabs)
 
         splitter.addWidget(form_widget)
         splitter.addWidget(table_widget)
@@ -245,7 +242,7 @@ class VisitsTab(QWidget):
         emp = self.db.get_employee_by_code(code)
         if emp:
             self.current_employee = dict(emp)
-            self.emp_name.setText(emp['real_name'])
+            self.emp_name.setText(emp['job_name'])
             self.emp_code.setText(emp['code'])
             self.emp_dept.setText(emp['department'] or '---')
             self.emp_gov.setText(emp['governorate'] or '---')
@@ -276,7 +273,7 @@ class VisitsTab(QWidget):
 
         # Show toast if main window is available
         self._show_toast(
-            f'✅ تم تسجيل دخول: {self.current_employee["real_name"]}  |  {entry_time}',
+            f'✅ تم تسجيل دخول: {self.current_employee["job_name"]}  |  {entry_time}',
             'success'
         )
         try:
@@ -284,7 +281,7 @@ class VisitsTab(QWidget):
             if hasattr(main_win, 'current_user') and main_win.current_user:
                 u = main_win.current_user
                 self.db.log_action(u['id'], u['username'], 'تسجيل دخول زيارة',
-                                   f'{self.current_employee["real_name"]} - {entry_time}')
+                                   f'{self.current_employee["job_name"]} - {entry_time}')
         except Exception:
             pass
 
@@ -311,7 +308,7 @@ class VisitsTab(QWidget):
         self.print_permit_btn.setEnabled(True)
         self.load_visits()
 
-        name = self.current_employee['real_name'] if self.current_employee else ''
+        name = self.current_employee['job_name'] if self.current_employee else ''
         self._show_toast(f'🔴 تم تسجيل الخروج: {name}  |  {exit_time}', 'info')
         try:
             main_win = self.window()
@@ -350,15 +347,12 @@ class VisitsTab(QWidget):
     def _get_visits_rows(self):
         date_str = self.date_edit.date().toString('yyyy-MM-dd')
         visits   = self.db.get_visits_by_date(date_str)
-        headers  = ['الاسم', 'الكود', 'القسم', 'المحافظة', 'الحالة الاجتماعية',
-                    'نوع الزيارة', 'دخول', 'خروج']
+        headers  = ['القسم', 'الكود', 'المسمى الوظيفي', 'نوع الزيارة', 'دخول', 'خروج']
         rows = [
-            [v['real_name'], v['code'], v['department'] or '', v['governorate'] or '',
-             v['marital_status'], v['visit_type'],
-             v['entry_time'] or '', v['exit_time'] or 'لم يغادر']
+            [v['department'] or '', v['code'], v['job_name'],
+             v['visit_type'], v['entry_time'] or '', v['exit_time'] or 'لم يغادر']
             for v in visits
         ]
-        return date_str, headers, rows
 
     def _pdf_visits(self):
         from datetime import datetime
@@ -391,23 +385,41 @@ class VisitsTab(QWidget):
                                    sheet_title=f'زيارات {date_str}')
 
     def _on_table_click(self):
-        row = self.table.currentRow()
+        """Kept for backward compatibility – actual clicks handled per-table."""
+        pass
+
+    def _on_table_click_t(self, table):
+        row = table.currentRow()
         if row < 0:
             return
-        visit_id_item = self.table.item(row, 0)
-        if visit_id_item:
-            self.current_visit_id = visit_id_item.data(Qt.UserRole)
+        item = table.item(row, 0)
+        if item:
+            self.current_visit_id = item.data(Qt.UserRole)
             self.print_permit_btn.setEnabled(True)
 
-    def load_visits(self):
-        date_str = self.date_edit.date().toString('yyyy-MM-dd')
-        visits = self.db.get_visits_by_date(date_str)
+    def _build_visits_table(self, visits):
+        """بناء جدول زيارات (مستخدم داخل كل تاب قسم)"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        self.table.setRowCount(len(visits))
+        table = QTableWidget()
+        table.setColumnCount(6)
+        table.setHorizontalHeaderLabels([
+            'الكود', 'المسمى الوظيفي', 'القسم', 'نوع الزيارة', 'دخول', 'خروج'
+        ])
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        table.setShowGrid(False)
+        table.verticalHeader().setDefaultSectionSize(36)
+        table.clicked.connect(lambda _, t=table: self._on_table_click_t(t))
+
+        table.setRowCount(len(visits))
         for row, v in enumerate(visits):
             values = [
-                v['real_name'], v['code'], v['department'] or '',
-                v['governorate'] or '', v['marital_status'],
+                v['code'], v['job_name'], v['department'] or '',
                 v['visit_type'], v['entry_time'] or '', v['exit_time'] or '---'
             ]
             for col, val in enumerate(values):
@@ -415,15 +427,43 @@ class VisitsTab(QWidget):
                 item.setTextAlignment(Qt.AlignCenter)
                 if col == 0:
                     item.setData(Qt.UserRole, v['id'])
-                self.table.setItem(row, col, item)
+                table.setItem(row, col, item)
 
-            # Color exit status
-            exit_item = self.table.item(row, 7)
+            exit_item = table.item(row, 5)
             if v['exit_time']:
                 exit_item.setForeground(QColor('#f85149'))
             else:
                 exit_item.setForeground(QColor('#3fb950'))
                 exit_item.setText('لم يغادر')
+
+        layout.addWidget(table)
+        return widget
+
+    def load_visits(self):
+        date_str = self.date_edit.date().toString('yyyy-MM-dd')
+        all_visits = self.db.get_visits_by_date(date_str)
+        depts = self.db.get_departments()
+
+        # Group visits by department
+        dept_visits = {d: [v for v in all_visits if v['department'] == d] for d in depts}
+
+        current_tab = self.dept_tabs.currentIndex()
+        self.dept_tabs.blockSignals(True)
+        self.dept_tabs.clear()
+
+        # "الكل" tab – all visits
+        all_widget = self._build_visits_table(all_visits)
+        self.dept_tabs.addTab(all_widget, f'📋 الكل ({len(all_visits)})')
+
+        # Per-department tabs
+        for dept in depts:
+            dvs = dept_visits.get(dept, [])
+            widget = self._build_visits_table(dvs)
+            self.dept_tabs.addTab(widget, f'🏢 {dept} ({len(dvs)})')
+
+        self.dept_tabs.blockSignals(False)
+        if 0 <= current_tab < self.dept_tabs.count():
+            self.dept_tabs.setCurrentIndex(current_tab)
 
     def refresh(self):
         self.load_visits()

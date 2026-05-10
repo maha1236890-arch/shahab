@@ -137,6 +137,13 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_log_timestamp ON activity_log(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_log_user ON activity_log(user_id);
             ''')
+        # Migration: add department column to nutrition if it doesn't exist
+        with self.get_connection() as conn:
+            try:
+                conn.execute("ALTER TABLE nutrition ADD COLUMN department TEXT NOT NULL DEFAULT ''")
+            except Exception:
+                pass  # Column already exists
+
         # Create default admin if no users exist
         self._ensure_default_admin()
 
@@ -259,14 +266,23 @@ class Database:
     def add_nutrition(self, data):
         with self.get_connection() as conn:
             conn.execute('''
-                INSERT INTO nutrition (date, food_count, qat_count, lighter_count, cigarette_count, snuff_count, notes)
-                VALUES (:date, :food_count, :qat_count, :lighter_count, :cigarette_count, :snuff_count, :notes)
+                INSERT INTO nutrition (date, department, food_count, qat_count, lighter_count,
+                                       cigarette_count, snuff_count, notes)
+                VALUES (:date, :department, :food_count, :qat_count, :lighter_count,
+                        :cigarette_count, :snuff_count, :notes)
             ''', data)
 
     def get_nutrition_by_date(self, date):
         with self.get_connection() as conn:
             return conn.execute(
-                'SELECT * FROM nutrition WHERE date=? ORDER BY created_at DESC', (date,)
+                'SELECT * FROM nutrition WHERE date=? ORDER BY department, created_at DESC', (date,)
+            ).fetchall()
+
+    def get_nutrition_by_date_dept(self, date, department):
+        with self.get_connection() as conn:
+            return conn.execute(
+                'SELECT * FROM nutrition WHERE date=? AND department=? ORDER BY created_at DESC',
+                (date, department)
             ).fetchall()
 
     def update_nutrition(self, record_id, data):
