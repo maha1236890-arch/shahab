@@ -47,6 +47,7 @@ a = Analysis(
         'tabs.nutrition_tab',
         'tabs.visits_tab',
         'tabs.qat_tab',
+        'tabs.distribution_tab',
         'tabs.departments_tab',
         'tabs.reports_tab',
         'tabs.users_tab',

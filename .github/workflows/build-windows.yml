@@ -34,9 +34,17 @@ jobs:
       - name: List output
         run: dir dist
 
-      - name: Upload Windows EXE artifact
+      - name: Build Windows Installer (Inno Setup)
+        run: |
+          choco install innosetup --yes --no-progress
+          iscc installer.iss
+
+      - name: List installer output
+        run: dir installer_output
+
+      - name: Upload Windows Installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EmployeeSystem-Windows
-          path: dist/
+          name: EmployeeSystem-Windows-Installer
+          path: installer_output/
           retention-days: 30
