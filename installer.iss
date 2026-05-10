@@ -34,8 +34,8 @@ PrivilegesRequiredOverridesAllowed=dialog
 Name: "arabic"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "إنشاء اختصار على سطح المكتب"; GroupDescription: "اختصارات إضافية:"; Flags: checked
-Name: "startmenuicon"; Description: "إضافة إلى قائمة ابدأ"; GroupDescription: "اختصارات إضافية:"; Flags: checked
+Name: "desktopicon"; Description: "إنشاء اختصار على سطح المكتب"; GroupDescription: "اختصارات إضافية:"
+Name: "startmenuicon"; Description: "إضافة إلى قائمة ابدأ"; GroupDescription: "اختصارات إضافية:"
 
 [Files]
 ; الملف التنفيذي الرئيسي
