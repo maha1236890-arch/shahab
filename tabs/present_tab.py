@@ -53,7 +53,7 @@ class EmployeeCard(QFrame):
         name_label.setAlignment(Qt.AlignCenter)
         name_label.setWordWrap(True)
 
-        time_label = QLabel(f'⏰ {emp.get("time_in", "") or ""}')
+        time_label = QLabel(f'⏰ {emp["time_in"] or "" if "time_in" in emp.keys() else ""}')
         time_label.setStyleSheet('color: #8b949e; font-size: 11px; background: transparent;')
         time_label.setAlignment(Qt.AlignCenter)
 
@@ -188,7 +188,7 @@ class PresentTab(QWidget):
         present  = self.db.get_present_employees(date_str)
         headers  = ['الاسم', 'الكود', 'الاسم الوظيفي', 'القسم', 'وقت الحضور']
         rows = [[e['real_name'], e['code'], e['job_name'],
-                 e['department'] or '', e.get('time_in') or '']
+                 e['department'] or '', (e['time_in'] if 'time_in' in e.keys() else '') or '']
                 for e in present]
         return date_str, headers, rows
 

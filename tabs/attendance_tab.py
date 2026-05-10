@@ -335,7 +335,7 @@ class AttendanceTab(QWidget):
         date_str, data = self._build_report_data()
         headers = ['الرقم', 'الكود', 'الاسم الوظيفي', 'القسم', 'الحالة', 'وقت الحضور']
         rows = [[str(r['id']), r['code'], r['job_name'],
-                 r.get('department') or '', r['status'], r['time_in'] or '']
+                 r['department'] or '', r['status'], r['time_in'] or '']
                 for r in data]
         export_utils.save_as_excel(self, headers, rows, f'حضور_{date_str}.xlsx',
                                    sheet_title=f'حضور {date_str}')
