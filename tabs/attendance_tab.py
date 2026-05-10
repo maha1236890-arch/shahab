@@ -137,9 +137,9 @@ class AttendanceTab(QWidget):
 
         # Table
         self.table = QTableWidget()
-        self.table.setColumnCount(7)
+        self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
-            'الرقم', 'الكود', 'الاسم', 'الاسم الوظيفي', 'القسم', 'الحالة', 'الإجراءات'
+            'الرقم', 'الكود', 'الاسم الوظيفي', 'القسم', 'الحالة', 'الإجراءات'
         ])
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -147,8 +147,8 @@ class AttendanceTab(QWidget):
         hdr = self.table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
         hdr.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        hdr.setSectionResizeMode(6, QHeaderView.Fixed)
-        self.table.setColumnWidth(6, 160)
+        hdr.setSectionResizeMode(5, QHeaderView.Fixed)
+        self.table.setColumnWidth(5, 160)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setDefaultSectionSize(40)
         layout.addWidget(self.table)
@@ -176,7 +176,7 @@ class AttendanceTab(QWidget):
             att = att_map.get(emp_id)
 
             for col, val in enumerate([
-                str(emp['id']), emp['code'], emp['real_name'],
+                str(emp['id']), emp['code'],
                 emp['job_name'], emp['department'] or ''
             ]):
                 item = QTableWidgetItem(val)
@@ -229,10 +229,10 @@ class AttendanceTab(QWidget):
 
             btn_layout.addWidget(p_btn)
             btn_layout.addWidget(a_btn)
-            self.table.setCellWidget(row, 6, btn_widget)
+            self.table.setCellWidget(row, 5, btn_widget)
 
     def _set_row_bg(self, row, color):
-        for col in range(6):
+        for col in range(5):
             item = self.table.item(row, col)
             if item:
                 item.setBackground(QColor(color))
@@ -323,8 +323,8 @@ class AttendanceTab(QWidget):
 
     def _excel_report(self):
         date_str, data = self._build_report_data()
-        headers = ['الرقم', 'الكود', 'الاسم', 'الاسم الوظيفي', 'القسم', 'الحالة', 'وقت الحضور']
-        rows = [[str(r['id']), r['code'], r['real_name'], r['job_name'],
+        headers = ['الرقم', 'الكود', 'الاسم الوظيفي', 'القسم', 'الحالة', 'وقت الحضور']
+        rows = [[str(r['id']), r['code'], r['job_name'],
                  r.get('department') or '', r['status'], r['time_in'] or '']
                 for r in data]
         export_utils.save_as_excel(self, headers, rows, f'حضور_{date_str}.xlsx',
