@@ -41,9 +41,7 @@ Name: "startmenuicon"; Description: "إضافة إلى قائمة ابدأ"; Gro
 ; الملف التنفيذي الرئيسي - يُنصَّب في Program Files
 Source: "dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
-; قاعدة البيانات - تُنسخ إلى %APPDATA%\نظام_الموظفين\ (مكان قابل للكتابة)
-Source: "employee_system.db"; DestDir: "{userappdata}\نظام_الموظفين"; \
-  Flags: ignoreversion onlyifdoesntexist
+; قاعدة البيانات تُنشأ تلقائياً عند أول تشغيل بواسطة البرنامج
 
 [Dirs]
 ; تأكد من وجود مجلد البيانات قبل نسخ قاعدة البيانات
