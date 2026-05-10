@@ -38,8 +38,16 @@ Name: "desktopicon"; Description: "إنشاء اختصار على سطح الم�
 Name: "startmenuicon"; Description: "إضافة إلى قائمة ابدأ"; GroupDescription: "اختصارات إضافية:"
 
 [Files]
-; الملف التنفيذي الرئيسي
+; الملف التنفيذي الرئيسي - يُنصَّب في Program Files
 Source: "dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+
+; قاعدة البيانات - تُنسخ إلى %APPDATA%\نظام_الموظفين\ (مكان قابل للكتابة)
+Source: "employee_system.db"; DestDir: "{userappdata}\نظام_الموظفين"; \
+  Flags: ignoreversion onlyifdoesntexist
+
+[Dirs]
+; تأكد من وجود مجلد البيانات قبل نسخ قاعدة البيانات
+Name: "{userappdata}\نظام_الموظفين"
 
 [Icons]
 ; اختصار قائمة Start

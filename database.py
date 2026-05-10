@@ -8,14 +8,20 @@ from datetime import datetime
 import os
 import sys
 
-# When running as a PyInstaller one-file bundle, __file__ points to a temp
-# extraction folder that is deleted on exit. Use sys.executable (the real binary
-# path) so the DB always lives next to the executable.
+# When running as a PyInstaller bundle on Windows, store the database in
+# %APPDATA%\نظام_الموظفين\ so it is always writable even when the exe is
+# installed in Program Files.  On Linux keep the old behaviour (next to the
+# executable or the source file).
 if getattr(sys, 'frozen', False):
-    _BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    if sys.platform == 'win32':
+        _appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+        _BASE_DIR = os.path.join(_appdata, 'نظام_الموظفين')
+    else:
+        _BASE_DIR = os.path.dirname(os.path.abspath(sys.executable))
 else:
     _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+os.makedirs(_BASE_DIR, exist_ok=True)
 DB_PATH = os.path.join(_BASE_DIR, 'employee_system.db')
 
 
